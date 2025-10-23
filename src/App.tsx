@@ -4,6 +4,8 @@ import { UserTypeSelection } from './components/UserTypeSelection';
 import { KeeperOnboarding } from './components/KeeperOnboarding';
 import { TellerOnboarding } from './components/TellerOnboarding';
 import { Dashboard } from './components/Dashboard';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { PWAUpdateNotification } from './components/PWAUpdateNotification';
 
 export type UserType = 'keeper' | 'teller' | null;
 
@@ -437,6 +439,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background">
       {renderCurrentScreen()}
+      <PWAInstallPrompt />
+      <PWAUpdateNotification />
     </div>
   );
 }

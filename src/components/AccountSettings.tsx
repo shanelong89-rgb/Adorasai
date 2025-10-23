@@ -13,6 +13,7 @@ import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { format } from 'date-fns@4.1.0';
 import { AvatarCropper } from './AvatarCropper';
+import { PWAInstallButton } from './PWAInstallPrompt';
 
 interface AccountSettingsProps {
   isOpen: boolean;
@@ -325,6 +326,7 @@ export function AccountSettings({ isOpen, onClose, userProfile, onUpdateProfile 
               <Button variant="ghost" className="w-full justify-start text-muted-foreground">
                 Manage Payment Methods
               </Button>
+              <PWAInstallButton />
             </div>
           </div>
         </div>
