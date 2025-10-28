@@ -12,8 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertDescription } from './ui/alert';
 import { UserProfile } from '../App';
 import { ArrowLeft, Shield, Eye, Calendar as CalendarIcon, Upload, X, Loader2, AlertCircle, Send, Copy, Check, MessageSquare } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
-import { format } from 'date-fns@4.1.0';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { AvatarCropper } from './AvatarCropper';
 
 interface KeeperOnboardingProps {

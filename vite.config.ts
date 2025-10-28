@@ -25,7 +25,6 @@
         'figma:asset/6fc0862563eb8f1312cdac1ec953e5668753b6c9.png': path.resolve(__dirname, './src/assets/6fc0862563eb8f1312cdac1ec953e5668753b6c9.png'),
         'figma:asset/3fe1935c438bb2370304ba54a6324fc61eac466e.png': path.resolve(__dirname, './src/assets/3fe1935c438bb2370304ba54a6324fc61eac466e.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
-        'date-fns@4.1.0': 'date-fns',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',
         '@supabase/supabase-js@2': '@supabase/supabase-js',

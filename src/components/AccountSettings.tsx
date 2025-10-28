@@ -11,7 +11,7 @@ import { Upload, X, User, Mail, Calendar as CalendarIcon, Lock, CreditCard, Save
 import { toast } from 'sonner@2.0.3';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { format } from 'date-fns@4.1.0';
+import { format } from 'date-fns';
 import { AvatarCropper } from './AvatarCropper';
 import { PWAInstallButton } from './PWAInstallPrompt';
 
