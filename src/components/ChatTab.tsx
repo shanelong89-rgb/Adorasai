@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Memory, UserProfile, UserType } from '../App';
-import { Send, Camera, Mic, Paperclip, Play, Pause, Smile, Plus, Languages, Video, BookOpen, MessageSquarePlus, X, Volume2, FileText, Quote, File, ScanText, Eye, EyeOff } from 'lucide-react';
+import { Send, Camera, Mic, Paperclip, Play, Pause, Smile, Plus, Languages, Video, BookOpen, MessageSquarePlus, X, Volume2, FileText, Quote, File, ScanText, Eye, EyeOff, UserPlus, MessageCircle, ArrowUp, ChevronUp } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -13,9 +13,14 @@ import { toast } from 'sonner@2.0.3';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from './ui/context-menu';
 import { extractPhotoMetadata, extractVideoMetadata, extractVideoCreationDate } from '../utils/exifExtractor';
 import { scanDocument, detectLanguage } from '../utils/documentScanner';
-import { SpeechTranscriber, TranscriptionResult, detectLanguageFromText, translateToEnglish } from '../utils/speechTranscription';
+import { SpeechTranscriber, TranscriptionResult, detectLanguageFromText, translateToEnglish, SUPPORTED_LANGUAGES } from '../utils/speechTranscription';
 import { AudioRecorder } from '../utils/audioRecorder';
 import { AudioTranscriber } from '../utils/audioTranscriber';
+import { translateText } from '../utils/aiService';
+import { convertVideoToMP4, needsConversion, getVideoPlayabilityInfo } from '../utils/videoConverter';
+import { extractVideoThumbnail } from '../utils/videoThumbnail';
+import { useChatScrollDetection } from '../utils/useChatScrollDetection';
+import { MediaFullscreenPreview } from './MediaFullscreenPreview';
 
 // Natural language date parsing function
 function parseChronologicalDate(content: string, currentAge: number = 20, partnerBirthday?: Date): Date | null {
@@ -109,12 +114,15 @@ function parseChronologicalDate(content: string, currentAge: number = 20, partne
 interface ChatTabProps {
   userType: UserType;
   userProfile: UserProfile;
-  partnerProfile: UserProfile;
+  partnerProfile: UserProfile | null; // Allow null for "not connected" state
   memories: Memory[];
   onAddMemory: (memory: Omit<Memory, 'id' | 'timestamp'>) => void;
   onEditMemory?: (memoryId: string, updates: Partial<Memory>) => void;
+  onDeleteMemory?: (memoryId: string) => void;
   activePrompt?: string | null;
   onClearPrompt?: () => void;
+  onScrollUp?: () => void; // Callback to notify parent when scrolling up in chat
+  onScrollDown?: () => void; // Callback to notify parent when scrolling down in chat
 }
 
 export function ChatTab({ 
@@ -124,8 +132,11 @@ export function ChatTab({
   memories, 
   onAddMemory,
   onEditMemory,
+  onDeleteMemory,
   activePrompt,
-  onClearPrompt
+  onClearPrompt,
+  onScrollUp,
+  onScrollDown
 }: ChatTabProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -145,6 +156,14 @@ export function ChatTab({
   const [liveTranscript, setLiveTranscript] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [micPermissionStatus, setMicPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
+  const [documentStates, setDocumentStates] = useState<{[key: string]: {
+    textShown: boolean;
+  }}>({});
+  const [deletedMemoryIds, setDeletedMemoryIds] = useState<Set<string>>(new Set());
+  const [deletedMemories, setDeletedMemories] = useState<Memory[]>([]);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [fullscreenMedia, setFullscreenMedia] = useState<{ type: 'photo' | 'video'; url: string; title: string } | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +174,7 @@ export function ChatTab({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activePromptRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{[key: string]: HTMLVideoElement | null}>({});
+  const lastScrollTop = useRef(0); // Track last scroll position for scroll direction detection
   
   // Audio recording refs
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
@@ -175,6 +195,20 @@ export function ChatTab({
       // Note: Scroll behavior is now handled in the scroll effects section below (lines 1103+)
     }
   }, [activePrompt]);
+
+  // Debug: Log video memories
+  useEffect(() => {
+    const videoMemories = memories.filter(m => m.type === 'video');
+    if (videoMemories.length > 0) {
+      console.log('📹 Video memories in ChatTab:', videoMemories.map(m => ({
+        id: m.id,
+        content: m.content,
+        hasVideoUrl: !!m.videoUrl,
+        videoUrl: m.videoUrl?.substring(0, 100),
+        timestamp: m.timestamp
+      })));
+    }
+  }, [memories]);
 
   // Check microphone permission status on mount
   useEffect(() => {
@@ -198,6 +232,379 @@ export function ChatTab({
     checkMicPermission();
   }, []);
 
+  // Use clean scroll detection hook
+  useChatScrollDetection({
+    onScrollUp,
+    onScrollDown,
+    scrollContainerRef: scrollAreaRef
+  });
+
+  // OLD SCROLL DETECTION CODE - DISABLED
+  // Replaced with useChatScrollDetection hook above
+  /*
+  useEffect(() => {
+    if (!onScrollUp) {
+      console.warn('⚠️ ChatTab: onScrollUp callback is NOT defined!');
+      return;
+    }
+    
+    console.log('✅ ChatTab: onScrollUp callback IS defined, setting up scroll detection...');
+
+    let scrollViewport: Element | null = null;
+    let handleScroll: (() => void) | null = null;
+    let handleTouchStart: ((e: TouchEvent) => void) | null = null;
+    let handleTouchMove: ((e: TouchEvent) => void) | null = null;
+    let touchStartY = 0;
+    let touchStartScrollTop = 0;
+
+    // Give ScrollArea time to mount and find its viewport
+    const timer = setTimeout(() => {
+      // Try multiple selectors to find the scroll viewport
+      scrollViewport = 
+        scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]') ||
+        scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') ||
+        document.querySelector('[data-slot="scroll-area-viewport"]') ||
+        document.querySelector('[data-radix-scroll-area-viewport]');
+      
+      if (!scrollViewport) {
+        console.warn('❌ ChatTab: ScrollArea viewport not found for scroll detection');
+        console.log('ChatTab: scrollAreaRef.current:', scrollAreaRef.current);
+        console.log('ChatTab: Searching in document...');
+        console.log('ChatTab: All elements with data-slot:', document.querySelectorAll('[data-slot]'));
+        
+        // FALLBACK: Add detection to the entire chat container
+        if (scrollAreaRef.current) {
+          console.log('🔧 ChatTab: Using FALLBACK - attaching to scrollAreaRef.current');
+          const fallbackElement = scrollAreaRef.current;
+          
+          let fallbackTouchStartY = 0;
+          const fallbackTouchStart = (e: TouchEvent) => {
+            fallbackTouchStartY = e.touches[0].clientY;
+            console.log('🟢 FALLBACK TOUCHSTART:', fallbackTouchStartY);
+          };
+          
+          const fallbackTouchMove = (e: TouchEvent) => {
+            const touchY = e.touches[0].clientY;
+            const touchDelta = touchY - fallbackTouchStartY;
+            console.log('🔵 FALLBACK TOUCHMOVE:', { touchY, touchDelta, willShowDashboard: touchDelta > 0 });
+            
+            // ANY upward finger motion = show dashboard
+            if (touchDelta > 0) {
+              console.log('🎯 FALLBACK: Upward scroll detected, calling onScrollUp()');
+              if (onScrollUp) onScrollUp();
+            } else if (touchDelta < -10) {
+              console.log('⬇️ FALLBACK: Downward scroll detected, calling onScrollDown()');
+              if (onScrollDown) onScrollDown();
+            }
+            
+            fallbackTouchStartY = touchY; // Update for continuous tracking
+          };
+          
+          fallbackElement.addEventListener('touchstart', fallbackTouchStart, { passive: true, capture: true });
+          fallbackElement.addEventListener('touchmove', fallbackTouchMove, { passive: true, capture: true });
+          console.log('✅ FALLBACK: Event listeners attached to chat container');
+          
+          return () => {
+            fallbackElement.removeEventListener('touchstart', fallbackTouchStart, { capture: true } as any);
+            fallbackElement.removeEventListener('touchmove', fallbackTouchMove, { capture: true } as any);
+          };
+        }
+        
+        return;
+      }
+
+      console.log('✅ ChatTab: Scroll viewport FOUND:', scrollViewport);
+      console.log('✅ ChatTab: Viewport element:', scrollViewport.tagName, scrollViewport.className);
+      console.log('✅ ChatTab: Initial scrollTop:', scrollViewport.scrollTop);
+      console.log('✅ ChatTab: Scroll detection initialized successfully (scroll + touch)');
+
+      // Scroll handler - works for desktop AND mobile (mobile fires scroll after touch)
+      handleScroll = () => {
+        const currentScrollTop = scrollViewport!.scrollTop;
+        
+        console.log('📜 ChatTab SCROLL event:', {
+          currentScrollTop,
+          lastScrollTop: lastScrollTop.current,
+          delta: currentScrollTop - lastScrollTop.current,
+          isUpward: currentScrollTop < lastScrollTop.current,
+          isDownward: currentScrollTop > lastScrollTop.current
+        });
+        
+        // Instant response: ANY upward scroll motion shows dashboard immediately
+        if (currentScrollTop < lastScrollTop.current) {
+          console.log('🎯 ChatTab: Upward scroll detected (SCROLL EVENT), calling onScrollUp()');
+          if (onScrollUp) onScrollUp();
+        }
+        // Downward scroll hides dashboard
+        else if (currentScrollTop > lastScrollTop.current) {
+          console.log('⬇️ ChatTab: Downward scroll detected (SCROLL EVENT), calling onScrollDown()');
+          if (onScrollDown) onScrollDown();
+        }
+        
+        lastScrollTop.current = currentScrollTop;
+      };
+
+      // Mobile touch handlers - ULTRA SENSITIVE with EXTENSIVE DEBUG
+      handleTouchStart = (e: TouchEvent) => {
+        touchStartY = e.touches[0].clientY;
+        touchStartScrollTop = scrollViewport!.scrollTop;
+        console.log('🟢 ChatTab TOUCHSTART:', {
+          touchY: touchStartY,
+          scrollTop: touchStartScrollTop
+        });
+      };
+
+      handleTouchMove = (e: TouchEvent) => {
+        const touchY = e.touches[0].clientY;
+        const touchDelta = touchY - touchStartY; // Positive = finger moving down (scrolling up)
+        const currentScrollTop = scrollViewport!.scrollTop;
+        
+        console.log('🔵 ChatTab TOUCHMOVE:', {
+          touchY,
+          touchStartY,
+          touchDelta,
+          currentScrollTop,
+          touchStartScrollTop,
+          lastScrollTop: lastScrollTop.current,
+          willTriggerUp: touchDelta > 0 || currentScrollTop < lastScrollTop.current,
+          willTriggerDown: touchDelta < -5 || currentScrollTop > lastScrollTop.current + 5
+        });
+        
+        // HYPER-SENSITIVE: ANY upward scroll motion shows dashboard INSTANTLY
+        // Method 1: ANY downward finger movement (even 1px) = scrolling up content
+        if (touchDelta > 0) {
+          console.log('🎯 ChatTab: Upward scroll detected (finger moved down), calling onScrollUp()');
+          if (onScrollUp) onScrollUp();
+        }
+        // Downward finger movement (scrolling down content) hides dashboard
+        else if (touchDelta < -5) {  // Small threshold to avoid jitter
+          console.log('⬇️ ChatTab: Downward scroll detected (finger moved up), calling onScrollDown()');
+          if (onScrollDown) onScrollDown();
+        }
+        
+        // Method 2: ANY decrease in scrollTop position  
+        if (currentScrollTop < lastScrollTop.current) {
+          console.log('🎯 ChatTab: Upward scroll detected (scrollTop decreased), calling onScrollUp()');
+          if (onScrollUp) onScrollUp();
+        }
+        // Increase in scrollTop (scrolling down) hides dashboard
+        else if (currentScrollTop > lastScrollTop.current + 5) {  // Small threshold
+          console.log('⬇️ ChatTab: Downward scroll detected (scrollTop increased), calling onScrollDown()');
+          if (onScrollDown) onScrollDown();
+        }
+        
+        // Method 3: Scroll position changed from touch start
+        if (currentScrollTop < touchStartScrollTop) {
+          console.log('🎯 ChatTab: Upward scroll detected (vs touchStart position), calling onScrollUp()');
+          if (onScrollUp) onScrollUp();
+        }
+        else if (currentScrollTop > touchStartScrollTop + 5) {
+          console.log('⬇️ ChatTab: Downward scroll detected (vs touchStart position), calling onScrollDown()');
+          if (onScrollDown) onScrollDown();
+        }
+        
+        lastScrollTop.current = currentScrollTop;
+      };
+
+      // Add all event listeners - try BOTH bubble and capture phase
+      // Scroll events (bubble phase only)
+      scrollViewport.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Touch events - try CAPTURE phase first (intercepts before Radix can stop propagation)
+      scrollViewport.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+      scrollViewport.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
+      
+      console.log('✅ ChatTab: Event listeners ATTACHED (scroll + touch with CAPTURE)');
+      console.log('✅ ChatTab: Listeners on element:', scrollViewport);
+      console.log('✅ ChatTab: Ready to detect scroll/touch events');
+      
+      // Test if touch events work at all (both phases)
+      scrollViewport.addEventListener('touchstart', () => {
+        console.log('🧪 TEST: touchstart BUBBLE phase');
+      }, { passive: true, once: true });
+      
+      scrollViewport.addEventListener('touchstart', () => {
+        console.log('🧪 TEST: touchstart CAPTURE phase');
+      }, { passive: true, once: true, capture: true });
+    }, 100);
+
+    // Cleanup function - remove both capture and bubble listeners
+    return () => {
+      clearTimeout(timer);
+      if (scrollViewport) {
+        if (handleScroll) scrollViewport.removeEventListener('scroll', handleScroll);
+        if (handleTouchStart) {
+          scrollViewport.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
+        }
+        if (handleTouchMove) {
+          scrollViewport.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
+        }
+      }
+    };
+  }, [onScrollUp, onScrollDown]);
+
+  // ULTIMATE FALLBACK: Window-level touch detection that ALWAYS works
+  // This is a last-resort safety net if ScrollArea detection fails
+  useEffect(() => {
+    let windowTouchStartY = 0;
+    let windowTouchStartTime = 0;
+    
+    const handleWindowTouchStart = (e: TouchEvent) => {
+      windowTouchStartY = e.touches[0].clientY;
+      windowTouchStartTime = Date.now();
+      console.log('🌍 WINDOW TOUCHSTART:', windowTouchStartY);
+    };
+    
+    const handleWindowTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const touchDelta = touchY - windowTouchStartY;
+      const timeDelta = Date.now() - windowTouchStartTime;
+      
+      console.log('🌍 WINDOW TOUCHMOVE:', { 
+        touchY, 
+        touchDelta, 
+        timeDelta,
+        velocity: touchDelta / timeDelta,
+        willShowDashboard: touchDelta > 0
+      });
+      
+      // ANY upward finger motion = show dashboard (even 1px!)
+      if (touchDelta > 0) {
+        console.log('🎯 WINDOW: Upward scroll detected, calling onScrollUp()');
+        if (onScrollUp) onScrollUp();
+      } else if (touchDelta < -10) {
+        console.log('⬇️ WINDOW: Downward scroll detected, calling onScrollDown()');
+        if (onScrollDown) onScrollDown();
+      }
+    };
+    
+    // Add window-level listeners as absolute fallback
+    window.addEventListener('touchstart', handleWindowTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleWindowTouchMove, { passive: true });
+    console.log('✅ WINDOW: Global touch listeners added as ultimate fallback');
+    
+    return () => {
+      window.removeEventListener('touchstart', handleWindowTouchStart);
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+    };
+  }, [onScrollUp, onScrollDown]);
+  */
+
+  // Track deleted memories by comparing with previous memories list
+  const previousMemoriesRef = useRef<Memory[]>([]);
+  useEffect(() => {
+    const currentIds = new Set(memories.map(m => m.id));
+    
+    // Find memories that were in previous but not in current (i.e., deleted)
+    const newlyDeletedMemories = previousMemoriesRef.current
+      .filter(m => !currentIds.has(m.id));
+    
+    if (newlyDeletedMemories.length > 0) {
+      // Add to deleted memories list
+      setDeletedMemories(prev => [...prev, ...newlyDeletedMemories]);
+      
+      // Add IDs to deleted set
+      setDeletedMemoryIds(prev => {
+        const updated = new Set(prev);
+        newlyDeletedMemories.forEach(m => updated.add(m.id));
+        return updated;
+      });
+    }
+    
+    previousMemoriesRef.current = memories;
+  }, [memories]);
+
+  // Scroll detection for showing "Scroll to Top" button
+  useEffect(() => {
+    // Small delay to ensure ScrollArea is mounted
+    const timer = setTimeout(() => {
+      // Find all scroll viewports and get the one in the chat tab
+      const scrollViewports = document.querySelectorAll('[data-slot="scroll-area-viewport"]');
+      let scrollViewport: Element | null = null;
+      
+      // Find the viewport that's in the ChatTab (contains chat messages)
+      scrollViewports.forEach(viewport => {
+        if (viewport.querySelector('[class*="space-y-4"]') || viewport.textContent?.includes('Start the conversation')) {
+          scrollViewport = viewport;
+        }
+      });
+      
+      if (!scrollViewport) {
+        console.log('ChatTab ScrollArea viewport not found, found', scrollViewports.length, 'viewports');
+        return;
+      }
+
+      console.log('Found ChatTab ScrollArea viewport, setting up scroll detection');
+
+      const handleScroll = () => {
+        const scrollTop = scrollViewport!.scrollTop;
+        const shouldShow = scrollTop > 300;
+        // Only log when state changes
+        if (shouldShow !== showScrollToTop) {
+          console.log('Scroll position:', scrollTop, 'Show button:', shouldShow);
+        }
+        setShowScrollToTop(shouldShow);
+      };
+
+      scrollViewport.addEventListener('scroll', handleScroll, { passive: true });
+      
+      return () => {
+        if (scrollViewport) {
+          scrollViewport.removeEventListener('scroll', handleScroll);
+        }
+      };
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [showScrollToTop]);
+
+  // Auto-scroll to bottom when messages change or component loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Find the ScrollArea viewport
+      const scrollViewports = document.querySelectorAll('[data-slot="scroll-area-viewport"]');
+      let scrollViewport: Element | null = null;
+      
+      // Find the viewport that's in the ChatTab
+      scrollViewports.forEach(viewport => {
+        if (viewport.querySelector('[class*="space-y-4"]') || viewport.textContent?.includes('Start the conversation')) {
+          scrollViewport = viewport;
+        }
+      });
+      
+      if (scrollViewport) {
+        // Scroll to bottom (instant on first load, smooth on updates)
+        const isFirstLoad = memories.length > 0 && scrollViewport.scrollTop === 0;
+        scrollViewport.scrollTo({
+          top: scrollViewport.scrollHeight,
+          behavior: isFirstLoad ? 'instant' : 'smooth'
+        });
+      }
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, [memories.length]);
+
+  // Scroll to bottom on initial mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const scrollViewports = document.querySelectorAll('[data-slot="scroll-area-viewport"]');
+      let scrollViewport: Element | null = null;
+      
+      scrollViewports.forEach(viewport => {
+        if (viewport.querySelector('[class*="space-y-4"]') || viewport.textContent?.includes('Start the conversation')) {
+          scrollViewport = viewport;
+        }
+      });
+      
+      if (scrollViewport) {
+        scrollViewport.scrollTop = scrollViewport.scrollHeight;
+      }
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array = only run once on mount
+
   // Get all unique past prompts from memories
   const pastPrompts = React.useMemo(() => {
     const uniquePrompts = new Map<string, Date>();
@@ -216,7 +623,7 @@ export function ChatTab({
     
     return Array.from(uniquePrompts.entries())
       .map(([question, timestamp]) => ({ question, timestamp }))
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [memories]);
 
   const handleSelectPastPrompt = (promptQuestion: string) => {
@@ -230,7 +637,26 @@ export function ChatTab({
     toast.success('Cleared prompt context');
   };
 
+  const handleScrollToTop = () => {
+    // Scroll the ScrollArea viewport to top
+    const scrollViewport = document.querySelector('[data-slot="scroll-area-viewport"]');
+    if (scrollViewport) {
+      scrollViewport.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // Also scroll window to top to show the dashboard header
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
   const handleSendMessage = () => {
+    // Safety check: Don't send if no partner connected
+    if (!partnerProfile) {
+      toast.error('Please connect with a partner first');
+      return;
+    }
+    
     if (message.trim()) {
       onAddMemory({
         type: 'text',
@@ -248,6 +674,12 @@ export function ChatTab({
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Safety check: Don't upload if no partner connected
+    if (!partnerProfile) {
+      toast.error('Please connect with a partner first');
+      return;
+    }
+    
     const file = event.target.files?.[0];
     if (file) {
       // Create a data URL for the photo preview
@@ -319,19 +751,65 @@ export function ChatTab({
   };
 
   const handleMediaUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Safety check: Don't upload if no partner connected
+    if (!partnerProfile) {
+      toast.error('Please connect with a partner first');
+      return;
+    }
+    
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     // Process all selected files
     for (const file of Array.from(files)) {
-      const isVideo = file.type.startsWith('video/');
+      const isVideo = file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mov');
       
       if (isVideo) {
+        let processedFile = file;
+        let conversionToastId: string | number | undefined;
+        
+        // Check if video needs conversion (e.g., .MOV files)
+        if (needsConversion(file)) {
+          console.log('🎬 Video needs conversion:', file.name);
+          conversionToastId = toast.loading('Converting video to web format...', { duration: Infinity });
+          
+          try {
+            const result = await convertVideoToMP4(file, (progress) => {
+              if (progress < 100) {
+                toast.loading(`Converting video: ${Math.round(progress)}%`, { id: conversionToastId });
+              }
+            });
+            
+            if (result.success && result.file) {
+              processedFile = result.file as File;
+              toast.success('Video converted successfully!', { id: conversionToastId });
+              console.log('✅ Video converted:', result.format);
+            } else {
+              toast.warning(result.error || 'Using original format - may not play in all browsers', { id: conversionToastId });
+              console.warn('⚠️ Video conversion failed, using original:', result.error);
+            }
+          } catch (error) {
+            console.error('❌ Video conversion error:', error);
+            toast.warning('Could not convert video - using original format', { id: conversionToastId });
+          }
+        }
+        
         // Create a blob URL for the video preview (works better than data URL for videos)
-        const videoUrl = URL.createObjectURL(file);
+        const videoUrl = URL.createObjectURL(processedFile);
+        
+        // Extract video thumbnail for preview
+        let videoThumbnail: string | undefined;
+        try {
+          console.log('🖼️ Extracting video thumbnail...');
+          videoThumbnail = await extractVideoThumbnail(videoUrl, 0.5); // Get frame at 0.5 seconds
+          console.log('✅ Video thumbnail extracted');
+        } catch (error) {
+          console.warn('⚠️ Could not extract video thumbnail:', error);
+          // Continue without thumbnail - video will still work
+        }
         
         // Extract video metadata including GPS and creation date
-        const videoMetadata = await extractVideoMetadata(file);
+        const videoMetadata = await extractVideoMetadata(processedFile);
         console.log('📹 Video metadata - location:', videoMetadata.location, 'date:', videoMetadata.date);
         
         // Generate suggested tags based on context
@@ -343,12 +821,13 @@ export function ChatTab({
         // Automatically add video with extracted metadata
         onAddMemory({
           type: 'video',
-          content: `Video: ${file.name}`,
+          content: `Video: ${processedFile.name}`,
           sender: userType as 'keeper' | 'teller',
           category: 'Video',
           tags: suggestedTags,
           promptQuestion: currentPromptContext || undefined,
           videoUrl: videoUrl,
+          videoThumbnail: videoThumbnail,
           videoDate: videoMetadata.date || undefined,
           videoLocation: videoMetadata.location || undefined,
           videoGPSCoordinates: videoMetadata.gpsCoordinates || undefined,
@@ -432,6 +911,12 @@ export function ChatTab({
   };
 
   const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Safety check: Don't upload if no partner connected
+    if (!partnerProfile) {
+      toast.error('Please connect with a partner first');
+      return;
+    }
+    
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -505,6 +990,12 @@ export function ChatTab({
   };
 
   const toggleRecording = async () => {
+    // Safety check: Don't record if no partner connected
+    if (!partnerProfile && !isRecording) {
+      toast.error('Please connect with a partner first');
+      return;
+    }
+    
     // Prevent multiple simultaneous toggle attempts
     if (isTogglingRef.current) {
       console.log('⚠️ Already toggling recording, ignoring...');
@@ -640,15 +1131,39 @@ export function ChatTab({
             setIsTranscribing(false);
           });
           
-          // Start transcription
+          // Start transcription with auto-detect based on user's locale
           try {
+            // Detect user's preferred language from browser/system settings
+            const userLocale = navigator.language || navigator.languages?.[0] || 'en-US';
+            console.log('🌍 User locale detected:', userLocale);
+            
+            // Map common locales to speech recognition language codes
+            let speechLang = userLocale;
+            
+            // Special handling for Chinese variants
+            if (userLocale.startsWith('zh')) {
+              if (userLocale.includes('HK') || userLocale.includes('Hant') || userLocale.toLowerCase().includes('hk')) {
+                // Hong Kong / Cantonese
+                speechLang = 'zh-HK'; // Cantonese (Traditional Chinese)
+                console.log('🗣️ Using Cantonese (Hong Kong) for speech recognition');
+              } else if (userLocale.includes('TW') || userLocale.includes('Hant')) {
+                // Taiwan / Traditional Chinese
+                speechLang = 'zh-TW';
+                console.log('🗣️ Using Traditional Chinese (Taiwan) for speech recognition');
+              } else {
+                // Mainland China / Simplified Chinese (Mandarin)
+                speechLang = 'zh-CN';
+                console.log('🗣️ Using Simplified Chinese (Mandarin) for speech recognition');
+              }
+            }
+            
             speechTranscriberRef.current.start({
-              language: 'en-US', // Can be changed to auto-detect or user preference
+              language: speechLang, // Use user's locale for native language transcription
               continuous: true,
               interimResults: true
             });
             setIsTranscribing(true);
-            console.log('✅ Speech recognition started');
+            console.log('✅ Speech recognition started with language:', speechLang);
           } catch (error) {
             console.error('Error starting speech recognition:', error);
             // Don't show error for speech recognition - recording will still work
@@ -684,6 +1199,13 @@ export function ChatTab({
         
         mediaRecorder.onstop = async () => {
           console.log('🛑 MediaRecorder stopped, chunks:', audioChunksRef.current.length);
+          
+          // Safety check: Don't save if no partner connected
+          if (!partnerProfile) {
+            console.warn('⚠️ Voice recording stopped - no partner connected');
+            toast.error('Please connect with a partner first');
+            return;
+          }
           
           if (audioChunksRef.current.length === 0) {
             console.warn('⚠️ No audio chunks recorded');
@@ -794,8 +1316,6 @@ export function ChatTab({
         toast.success(speechSupported ? 'Recording with live transcription' : 'Recording started');
         
       } catch (error) {
-        console.error('🎤 Microphone permission error:', error);
-        
         // Stop any ongoing transcription attempt
         if (speechTranscriberRef.current) {
           try {
@@ -807,6 +1327,8 @@ export function ChatTab({
         
         if (error instanceof DOMException) {
           if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            // This is expected when user denies permission - not an error
+            console.log('ℹ️ Microphone permission denied by user');
             setMicPermissionStatus('denied');
             
             // Provide device-specific instructions
@@ -825,19 +1347,23 @@ export function ChatTab({
               });
             }
           } else if (error.name === 'NotFoundError') {
+            console.error('🎤 Microphone not found:', error);
             toast.error('No microphone detected. Please connect a microphone and try again.', {
               duration: 5000
             });
           } else if (error.name === 'NotReadableError') {
+            console.error('🎤 Microphone in use:', error);
             toast.error('Microphone is being used by another app. Please close other apps and try again.', {
               duration: 6000
             });
           } else {
+            console.error('🎤 Microphone access error:', error);
             toast.error('Unable to access microphone. Please check your device settings.', {
               duration: 5000
             });
           }
         } else {
+          console.error('🎤 Recording failed:', error);
           toast.error('Failed to start recording. Please check microphone permissions and try again.', {
             duration: 5000
           });
@@ -984,49 +1510,31 @@ export function ChatTab({
     }
 
     setTranscribingMemoryId(memoryId);
-    toast.loading('Transcribing audio...', { id: 'transcribe' });
+    toast.loading('Transcribing audio with AI...', { id: 'transcribe' });
 
     try {
-      const transcriber = new AudioTranscriber();
-      
-      let transcript = '';
-      let detectedLanguage = { code: 'en-US', name: 'English (US)' };
-      
-      try {
-        const result = await transcriber.transcribe(memory.audioUrl, 'en-US');
-        transcript = result.transcript;
-        
-        if (!transcript) {
-          const manualTranscript = await transcriber.requestManualTranscription();
-          if (manualTranscript) {
-            transcript = manualTranscript;
-            detectedLanguage = detectLanguageFromText(transcript);
-          } else {
-            throw new Error('Transcription cancelled');
-          }
-        }
-      } catch (autoError) {
-        console.error('Auto-transcription failed:', autoError);
-        
-        const manualTranscript = await transcriber.requestManualTranscription();
-        if (manualTranscript) {
-          transcript = manualTranscript;
-          detectedLanguage = detectLanguageFromText(transcript);
-        } else {
-          throw new Error('Transcription cancelled');
-        }
+      // Call backend Groq Whisper API for transcription
+      const response = await apiClient.transcribeAudio(memory.audioUrl);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Transcription failed');
       }
 
-      let englishTranslation = undefined;
-      if (detectedLanguage.code !== 'en-US' && detectedLanguage.code !== 'en-GB') {
-        englishTranslation = await translateToEnglish(transcript, detectedLanguage.code);
-      }
+      const transcript = response.originalTranscript || response.transcript || '';
+      const englishTranslation = response.translated ? response.transcript : undefined;
+      const detectedLanguage = response.language || 'unknown';
+      
+      // Map language code to readable name
+      const languageName = SUPPORTED_LANGUAGES.find(l => 
+        l.code.toLowerCase().includes(detectedLanguage.toLowerCase()) || 
+        l.name.toLowerCase().includes(detectedLanguage.toLowerCase())
+      )?.name || detectedLanguage;
 
       if (onEditMemory && transcript) {
         onEditMemory(memoryId, {
           transcript: transcript,
-          voiceLanguage: detectedLanguage.name,
-          voiceLanguageCode: detectedLanguage.code,
+          voiceLanguage: languageName,
+          voiceLanguageCode: detectedLanguage,
           englishTranslation: englishTranslation
         });
 
@@ -1039,16 +1547,16 @@ export function ChatTab({
           }
         }));
 
-        toast.success('Audio transcribed successfully', { id: 'transcribe' });
+        if (response.translated) {
+          toast.success(`Transcribed from ${languageName}!`, { id: 'transcribe' });
+        } else {
+          toast.success('Audio transcribed successfully!', { id: 'transcribe' });
+        }
       }
     } catch (error) {
       console.error('Transcription error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to transcribe audio';
-      if (!errorMessage.includes('cancelled')) {
-        toast.error(errorMessage, { id: 'transcribe' });
-      } else {
-        toast.dismiss('transcribe');
-      }
+      toast.error(errorMessage, { id: 'transcribe' });
     } finally {
       setTranscribingMemoryId(null);
     }
@@ -1061,33 +1569,203 @@ export function ChatTab({
     toast.success('Voice memo quoted');
   };
 
-  // Video interaction handler
-  const handleVideoClick = (memoryId: string) => {
-    const videoElement = videoRefs.current[memoryId];
-    if (!videoElement) return;
+  const handleTranslateVoiceTranscript = async (memoryId: string) => {
+    const memory = memories.find(m => m.id === memoryId);
+    if (!memory || !memory.transcript) {
+      toast.error('No transcript available to translate');
+      return;
+    }
 
-    if (playingVideoId === memoryId) {
-      // Pause the video
-      videoElement.pause();
-      setPlayingVideoId(null);
-    } else {
-      // Pause any currently playing video
-      if (playingVideoId && videoRefs.current[playingVideoId]) {
-        videoRefs.current[playingVideoId]?.pause();
+    // If already has translation, just toggle visibility
+    if (memory.englishTranslation) {
+      setVoiceStates(prev => ({
+        ...prev,
+        [memoryId]: {
+          ...prev[memoryId],
+          translationShown: !prev[memoryId]?.translationShown,
+          transcriptionShown: true // Show transcription when showing translation
+        }
+      }));
+      return;
+    }
+
+    // Translate using Groq AI
+    setTranscribingMemoryId(memoryId);
+    toast.loading('Translating to English...', { id: 'translate' });
+
+    try {
+      const result = await translateText({
+        text: memory.transcript,
+        sourceLanguage: memory.voiceLanguage || undefined,
+        targetLanguage: 'English'
+      });
+
+      if (onEditMemory) {
+        onEditMemory(memoryId, {
+          englishTranslation: result.translatedText
+        });
+
+        setVoiceStates(prev => ({
+          ...prev,
+          [memoryId]: {
+            ...prev[memoryId],
+            translationShown: true,
+            transcriptionShown: true
+          }
+        }));
+
+        toast.success('Translation complete', { id: 'translate' });
       }
-      // Play this video
-      videoElement.play();
-      setPlayingVideoId(memoryId);
+    } catch (error) {
+      console.error('Translation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to translate';
+      
+      if (errorMessage === 'AI_NOT_CONFIGURED') {
+        toast.error('AI translation not configured. Please set up Groq API key.', { id: 'translate' });
+      } else {
+        toast.error(errorMessage, { id: 'translate' });
+      }
+    } finally {
+      setTranscribingMemoryId(null);
     }
   };
 
-  const chatMessages = memories.filter(m => {
+  // Video interaction handler - opens fullscreen preview
+  const handleVideoClick = (memory: Memory) => {
+    if (!memory.videoUrl) {
+      toast.error('Video source unavailable');
+      return;
+    }
+    
+    setFullscreenMedia({ 
+      type: 'video', 
+      url: memory.videoUrl, 
+      title: memory.content 
+    });
+  };
+
+  // Document extraction handler
+  const handleExtractDocumentText = async (memoryId: string) => {
+    const memory = memories.find(m => m.id === memoryId);
+    if (!memory || !memory.documentUrl) {
+      console.error('❌ Document extraction failed: No document URL found', { 
+        memoryId, 
+        hasMemory: !!memory,
+        documentUrl: memory?.documentUrl 
+      });
+      toast.error('No document available to extract text from');
+      return;
+    }
+
+    // Check if document is an image format that AI can process
+    const imageFormats = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+    const fileName = (memory.documentFileName || '').toLowerCase();
+    const isImageFormat = imageFormats.some(format => fileName.endsWith(format));
+    
+    if (!isImageFormat) {
+      toast.error('AI text extraction only works with image formats (PNG, JPEG, GIF, WebP). This document type is not supported.');
+      return;
+    }
+
+    console.log('📄 Starting document text extraction:', {
+      memoryId,
+      documentUrl: memory.documentUrl.substring(0, 100) + '...',
+      documentType: memory.documentType,
+      fileName: memory.documentFileName
+    });
+
+    // If already has text, just toggle visibility
+    if (memory.documentScannedText) {
+      console.log('ℹ️ Document already has extracted text, toggling visibility');
+      setDocumentStates(prev => ({
+        ...prev,
+        [memoryId]: {
+          ...prev[memoryId],
+          textShown: !prev[memoryId]?.textShown
+        }
+      }));
+      return;
+    }
+
+    // Extract text using AI
+    setTranscribingDocId(memoryId);
+    toast.loading('Extracting text from document...', { id: 'extract-doc' });
+
+    try {
+      console.log('🤖 Calling AI document extraction service...');
+      const { extractDocumentText } = await import('../utils/aiService');
+      const result = await extractDocumentText(memory.documentUrl);
+
+      console.log('✅ Document text extracted:', {
+        textLength: result.text.length,
+        wordCount: result.text.split(' ').length,
+        language: result.language
+      });
+
+      if (onEditMemory) {
+        onEditMemory(memoryId, {
+          documentScannedText: result.text,
+          documentScanLanguage: result.language
+        });
+
+        setDocumentStates(prev => ({
+          ...prev,
+          [memoryId]: {
+            ...prev[memoryId],
+            textShown: true
+          }
+        }));
+
+        toast.success(`Extracted ${result.text.split(' ').length} words`, { id: 'extract-doc' });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to extract text';
+      
+      if (errorMessage === 'AI_NOT_CONFIGURED') {
+        toast.error('AI extraction not configured. Please set up Groq API key.', { id: 'extract-doc' });
+      } else if (errorMessage === 'GROQ_API_KEY_INVALID') {
+        toast.error('Invalid Groq API key. Please update your GROQ_API_KEY in Supabase settings.', { id: 'extract-doc' });
+      } else if (errorMessage.includes('not supported for AI text extraction')) {
+        // Silent - this is an expected user scenario for unsupported file types (PDFs, etc.)
+        toast.info('This file type is not supported for AI text extraction', { id: 'extract-doc' });
+      } else {
+        // Only log unexpected errors
+        console.error('Document extraction error:', errorMessage);
+        toast.error('Failed to extract text from document', { id: 'extract-doc' });
+      }
+    } finally {
+      setTranscribingDocId(null);
+    }
+  };
+
+  const handleToggleDocumentText = (memoryId: string) => {
+    setDocumentStates(prev => ({
+      ...prev,
+      [memoryId]: {
+        ...prev[memoryId],
+        textShown: !prev[memoryId]?.textShown
+      }
+    }));
+  };
+
+  // Combine active and deleted memories for display
+  const allChatMemories = [...memories, ...deletedMemories];
+  
+  // Remove duplicates (in case a deleted memory is somehow still in memories)
+  const uniqueMemories = allChatMemories.reduce((acc, m) => {
+    if (!acc.find(existing => existing.id === m.id)) {
+      acc.push(m);
+    }
+    return acc;
+  }, [] as Memory[]);
+  
+  const chatMessages = uniqueMemories.filter(m => {
     const isRelevantCategory = m.category === 'Chat' || m.category === 'Photos' || m.category === 'Voice' || m.category === 'Video' || m.category === 'Documents' || m.category === 'Prompt' || m.category === 'Prompts';
     // Filter out the initial prompt question messages (where content equals promptQuestion)
     // These are shown in the header instead of as chat bubbles
     const isInitialPromptMessage = m.promptQuestion && m.content === m.promptQuestion && m.tags.includes('question');
     return isRelevantCategory && !isInitialPromptMessage;
-  }).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   // Track previous message count to detect new messages
   const prevMessageCountRef = useRef<number>(0);
@@ -1153,6 +1831,32 @@ export function ChatTab({
     const isOwnMessage = memory.sender === userType;
     const senderProfile = isOwnMessage ? userProfile : partnerProfile;
 
+    // Check if this memory has been deleted
+    if (deletedMemoryIds.has(memory.id)) {
+      return (
+        <div key={memory.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3 opacity-50`}>
+          <div className={`flex space-x-3 ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''} max-w-[85%]`}>
+            <Avatar className={`w-8 h-8 ring-2 ring-border flex-shrink-0 mt-0.5 ${isOwnMessage ? 'mr-0.5' : 'ml-0.5'}`}>
+              <AvatarImage src={senderProfile.photo} />
+              <AvatarFallback className="text-xs bg-primary/10 text-primary">{senderProfile.name[0]}</AvatarFallback>
+            </Avatar>
+            <div className={`space-y-2 ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col min-w-0 flex-1`}>
+              <div className={`px-3 py-2.5 rounded-2xl shadow-sm ${
+                isOwnMessage 
+                  ? 'bg-[rgb(241,241,241)] text-black/50 rounded-br-md' 
+                  : 'bg-white text-black/50 border border-border rounded-bl-md'
+              }`}>
+                <p className="text-sm italic">Message deleted</p>
+              </div>
+              <span className="text-xs text-muted-foreground px-1">
+                {formatTime(memory.timestamp)}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div key={memory.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3 animate-fade-in`}>
         <div className={`flex space-x-3 ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''} max-w-[85%]`}>
@@ -1172,11 +1876,20 @@ export function ChatTab({
               {memory.type === 'photo' && (
                 <div className="space-y-2">
                   {memory.photoUrl ? (
-                    <div className="max-w-sm">
+                    <div 
+                      className="w-full max-w-[280px] sm:max-w-sm cursor-pointer"
+                      onClick={() => setFullscreenMedia({ type: 'photo', url: memory.photoUrl!, title: memory.content })}
+                    >
                       <img 
                         src={memory.photoUrl} 
                         alt={memory.content}
-                        className="w-full h-auto rounded-lg"
+                        className="w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
+                        loading="lazy"
+                        onError={(e) => {
+                          console.error('Photo failed to load:', memory.photoUrl?.substring(0, 100));
+                          // Show placeholder on error
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                     </div>
                   ) : (
@@ -1194,7 +1907,7 @@ export function ChatTab({
                       )}
                       {memory.photoDate && (
                         <Badge variant="outline" className="text-xs mr-1">
-                          📅 {memory.photoDate.toLocaleDateString()}
+                          📅 {typeof memory.photoDate === 'string' ? new Date(memory.photoDate).toLocaleDateString() : memory.photoDate.toLocaleDateString()}
                         </Badge>
                       )}
                       {memory.detectedPeople && memory.detectedPeople.length > 0 && (
@@ -1313,6 +2026,14 @@ export function ChatTab({
                           ? (voiceStates[memory.id]?.transcriptionShown ? 'Hide Transcription' : 'Show Transcription')
                           : 'Transcribe Audio'}
                     </ContextMenuItem>
+                    {memory.transcript && (
+                      <ContextMenuItem onClick={() => handleTranslateVoiceTranscript(memory.id)}>
+                        <Languages className="w-4 h-4 mr-2" />
+                        {memory.englishTranslation 
+                          ? (voiceStates[memory.id]?.translationShown ? 'Hide Translation' : 'Show Translation')
+                          : 'Translate to English'}
+                      </ContextMenuItem>
+                    )}
                     <ContextMenuItem onClick={() => handleTogglePlay(memory.id)}>
                       <Volume2 className="w-4 h-4 mr-2" />
                       {voiceStates[memory.id]?.isPlaying ? 'Pause' : 'Play'}
@@ -1328,8 +2049,8 @@ export function ChatTab({
                 <div className="space-y-2">
                   {memory.videoUrl ? (
                     <div 
-                      className="relative w-full max-w-sm rounded-lg overflow-hidden cursor-pointer group"
-                      onClick={() => handleVideoClick(memory.id)}
+                      className="relative w-full max-w-sm rounded-lg overflow-hidden cursor-pointer group bg-black"
+                      onClick={() => handleVideoClick(memory)}
                     >
                       <video
                         ref={(el) => {
@@ -1337,23 +2058,55 @@ export function ChatTab({
                         }}
                         src={memory.videoUrl}
                         className="w-full h-auto rounded-lg"
-                        onEnded={() => setPlayingVideoId(null)}
+                        preload="metadata"
+                        playsInline
+                        poster={memory.videoThumbnail || ''}
+                        crossOrigin="anonymous"
+                        onLoadedMetadata={(e) => {
+                          // Video loaded successfully - can be played
+                          console.log('✅ Video loaded:', memory.content, 'URL:', memory.videoUrl);
+                        }}
+                        onLoadStart={() => {
+                          console.log('🎬 Video loading started:', {
+                            memoryId: memory.id,
+                            content: memory.content,
+                            videoUrl: memory.videoUrl?.substring(0, 100)
+                          });
+                        }}
+                        onError={(e) => {
+                          const target = e.target as HTMLVideoElement;
+                          const errorCode = target.error?.code;
+                          
+                          console.error('❌ Video playback error:', {
+                            errorCode,
+                            message: target.error?.message,
+                            file: memory.content,
+                            videoUrl: memory.videoUrl
+                          });
+                          
+                          // Show user-friendly message only for format errors (code 4)
+                          // Error codes: 1=MEDIA_ERR_ABORTED, 2=MEDIA_ERR_NETWORK, 3=MEDIA_ERR_DECODE, 4=MEDIA_ERR_SRC_NOT_SUPPORTED
+                          if (errorCode === 4 || errorCode === 3) {
+                            const fileName = memory.content.toLowerCase();
+                            if (fileName.includes('.mov') || fileName.includes('video.mov')) {
+                              toast.error('Video format not supported by your browser. Try re-uploading or use MP4 format.', { duration: 5000 });
+                            } else if (fileName.includes('.webm')) {
+                              toast.error('WebM video not supported in your browser. Try Safari or Chrome.', { duration: 5000 });
+                            } else {
+                              toast.error('This video format cannot be played in your browser. Try uploading as MP4.', { duration: 5000 });
+                            }
+                          } else if (errorCode === 2) {
+                            // Network error - usually transient
+                            console.warn('⚠️ Video network error - may be temporary');
+                          }
+                        }}
                       />
-                      {/* Play/Pause Overlay */}
-                      {playingVideoId !== memory.id && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-                          <div className="bg-white/90 rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
-                            <Play className="w-6 h-6 text-black ml-0.5" />
-                          </div>
+                      {/* Play Overlay - Always show to indicate it's clickable */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                        <div className="bg-white/90 rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
+                          <Play className="w-6 h-6 text-black ml-0.5" />
                         </div>
-                      )}
-                      {playingVideoId === memory.id && (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="bg-white/90 rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
-                            <Pause className="w-6 h-6 text-black" />
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ) : (
                     <div className="w-48 h-32 bg-muted rounded-xl flex items-center justify-center border border-border">
@@ -1370,7 +2123,7 @@ export function ChatTab({
                       )}
                       {memory.videoDate && (
                         <Badge variant="outline" className="text-xs mr-1">
-                          📅 {memory.videoDate.toLocaleDateString()}
+                          📅 {typeof memory.videoDate === 'string' ? new Date(memory.videoDate).toLocaleDateString() : memory.videoDate.toLocaleDateString()}
                         </Badge>
                       )}
                       {memory.videoPeople && memory.videoPeople.length > 0 && (
@@ -1418,23 +2171,61 @@ export function ChatTab({
                     </div>
                   </div>
                   
+                  {/* Extract Text Button - Only for image formats */}
+                  {!memory.documentScannedText && (() => {
+                    const imageFormats = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+                    const fileName = (memory.documentFileName || '').toLowerCase();
+                    const isImageFormat = imageFormats.some(format => fileName.endsWith(format));
+                    
+                    return isImageFormat ? (
+                      <div className="pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8 text-xs"
+                          onClick={() => handleExtractDocumentText(memory.id)}
+                          disabled={transcribingDocId === memory.id}
+                        >
+                          <ScanText className="w-3 h-3 mr-1.5" />
+                          {transcribingDocId === memory.id ? 'Extracting...' : 'Extract Text with AI'}
+                        </Button>
+                      </div>
+                    ) : null;
+                  })()}
+                  
                   {/* Scanned Text */}
                   {memory.documentScannedText && (
                     <div className="border-t border-border/30 pt-2 sm:pt-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-1.5">
                           <ScanText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                          <span className="text-[10px] sm:text-xs font-medium text-black/70">Scanned Text</span>
+                          <span className="text-[10px] sm:text-xs font-medium text-black/70">Extracted Text</span>
                         </div>
-                        <Badge variant="secondary" className="text-[10px] sm:text-xs">
-                          {memory.documentScannedText.split(' ').length} words
-                        </Badge>
+                        <div className="flex items-center space-x-1.5">
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                            {memory.documentScannedText.split(' ').length} words
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => handleToggleDocumentText(memory.id)}
+                          >
+                            {documentStates[memory.id]?.textShown ? (
+                              <><EyeOff className="w-3 h-3 mr-1" />Hide</>
+                            ) : (
+                              <><Eye className="w-3 h-3 mr-1" />Show</>
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                      <div className="bg-muted/30 rounded-lg p-2 sm:p-3 max-h-32 sm:max-h-40 overflow-y-auto">
-                        <p className="text-[10px] sm:text-xs leading-relaxed text-black/80 whitespace-pre-wrap break-words">
-                          {memory.documentScannedText}
-                        </p>
-                      </div>
+                      {documentStates[memory.id]?.textShown && (
+                        <div className="bg-muted/30 rounded-lg p-2 sm:p-3 max-h-32 sm:max-h-40 overflow-y-auto">
+                          <p className="text-[10px] sm:text-xs leading-relaxed text-black/80 whitespace-pre-wrap break-words">
+                            {memory.documentScannedText}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1456,8 +2247,36 @@ export function ChatTab({
     );
   };
 
+  // Show empty state if no partner is connected
+  if (!partnerProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-12 sm:py-16 px-4 text-center space-y-6">
+        <div className="p-4 bg-primary/10 rounded-full">
+          <MessageCircle className="w-12 h-12 sm:w-16 sm:h-16 text-primary" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl sm:text-2xl font-medium" style={{ fontFamily: 'Archivo', letterSpacing: '-0.05em' }}>
+            {userType === 'keeper' ? 'No Storyteller Connected' : 'No Connection Yet'}
+          </h3>
+          <p className="text-muted-foreground max-w-md text-sm sm:text-base">
+            {userType === 'keeper' 
+              ? 'Create an invitation to connect with a storyteller and start your memory collection.'
+              : 'Accept an invitation code from a legacy keeper to begin sharing your stories.'}
+          </p>
+        </div>
+        <Button
+          onClick={() => toast.info('Open the menu (☰) → Invite to create or accept a connection')}
+          className="gap-2"
+        >
+          <UserPlus className="w-4 h-4" />
+          Connect Now
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full relative bg-background">
       {/* Hidden file inputs - always in DOM so they can be triggered from anywhere */}
       <input
         ref={fileInputRef}
@@ -1511,6 +2330,43 @@ export function ChatTab({
             >
               <X className="w-4 h-4 text-muted-foreground" />
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Microphone Permission Warning Banner */}
+      {micPermissionStatus === 'denied' && (
+        <div className="bg-red-50 border-b border-red-200 p-3 shadow-sm flex-shrink-0">
+          <div className="flex items-start space-x-3">
+            <Mic className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-red-900 mb-1" style={{ fontFamily: 'Archivo' }}>
+                Microphone Access Blocked
+              </h4>
+              <p className="text-xs text-red-700 mb-2" style={{ fontFamily: 'Inter' }}>
+                {(() => {
+                  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+                  const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+                  
+                  if (isIOS || isSafari) {
+                    return 'To record voice memos, go to Settings → Safari → Microphone and allow this site.';
+                  } else {
+                    return 'To record voice memos, click the 🔒 or ⓘ icon in the address bar and allow microphone access.';
+                  }
+                })()}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setMicPermissionStatus('unknown');
+                  toast.info('Please allow microphone access when prompted');
+                }}
+                className="h-7 text-xs bg-white hover:bg-red-50 border-red-300 text-red-700"
+              >
+                Try Again
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -1587,7 +2443,15 @@ export function ChatTab({
       )}
 
       {/* Messages Area - Add bottom padding for fixed input */}
-      <ScrollArea className={`flex-1 px-3 pb-20 ${activePrompt || currentPromptContext ? 'pt-4' : 'pt-0'}`}>
+      <ScrollArea 
+        ref={scrollAreaRef}
+        className={`flex-1 px-3 pb-32 ${activePrompt || currentPromptContext ? 'pt-4' : 'pt-0'}`} 
+        style={{ 
+          touchAction: 'pan-y',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain'
+        }}
+      >
         <div className="space-y-4 max-w-full">
           {chatMessages.length === 0 ? (
             <div className="text-center py-8 space-y-2">
@@ -1643,7 +2507,7 @@ export function ChatTab({
           </div>
         )}
 
-        <div className="bg-card/95 backdrop-blur-sm p-3 max-w-[1400px] mx-auto">
+        <div className="bg-card/95 backdrop-blur-sm p-3 pb-6 max-w-[1400px] mx-auto">
         {/* Past Prompts Button - Top Row */}
         {pastPrompts.length > 0 && !currentPromptContext && !activePrompt && (
           <div className="mb-2">
@@ -1676,8 +2540,8 @@ export function ChatTab({
                       >
                         <div className="flex items-start space-x-2 w-full">
                           <BookOpen className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium mb-1 text-left" style={{ fontFamily: 'Inter' }}>
+                          <div className="flex-1 min-w-0 overflow-hidden">
+                            <p className="text-sm font-medium mb-1 text-left break-words whitespace-normal" style={{ fontFamily: 'Inter' }}>
                               {prompt.question}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -1702,23 +2566,40 @@ export function ChatTab({
           </div>
         )}
 
-        {/* Live Transcription Display */}
-        {isRecording && isTranscribing && liveTranscript && (
-          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200/50 px-4 py-3 animate-fade-in">
-            <div className="flex items-start space-x-3">
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-semibold text-red-700" style={{ fontFamily: 'Inter' }}>
-                  Recording • {recordingTime}s
-                </span>
+        {/* Live Transcription Display (only show when recording) */}
+        {isRecording && (
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200 px-3 sm:px-4 py-3 sm:py-4 shadow-lg animate-fade-in">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></div>
+                  <span className="text-xs sm:text-sm font-semibold text-red-700" style={{ fontFamily: 'Inter' }}>
+                    Recording • {recordingTime}s
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={toggleRecording}
+                  className="h-7 text-xs bg-white hover:bg-red-100 border-red-300 text-red-700"
+                >
+                  Stop & Save
+                </Button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground mb-0.5" style={{ fontFamily: 'Inter' }}>
+              <div className="bg-white/80 backdrop-blur-sm rounded-lg p-2.5 sm:p-3 min-h-[70px] border border-red-200/50">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1.5 flex items-center gap-1 uppercase tracking-wide" style={{ fontFamily: 'Inter' }}>
+                  <Languages className="w-3.5 h-3.5" />
                   Live Transcription:
                 </p>
-                <p className="text-sm text-foreground leading-relaxed" style={{ fontFamily: 'Inter' }}>
-                  {liveTranscript}
-                </p>
+                {liveTranscript ? (
+                  <p className="text-base sm:text-lg text-foreground leading-relaxed font-medium" style={{ fontFamily: 'Inter' }}>
+                    {liveTranscript}
+                  </p>
+                ) : (
+                  <p className="text-sm sm:text-base text-muted-foreground/70 italic" style={{ fontFamily: 'Inter' }}>
+                    {isTranscribing ? 'Listening...' : 'Speak to see transcription...'}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1821,14 +2702,23 @@ export function ChatTab({
                   <Camera className="w-4 h-4 mr-2" />
                   Photo
                 </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => videoInputRef.current?.click()}
-                >
-                  <Video className="w-4 h-4 mr-2" />
-                  Video
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => videoInputRef.current?.click()}
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        Video
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p className="text-xs">Supports MP4, MOV, and more. MOV files are automatically converted for web playback.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button
                   variant="ghost"
                   className="w-full justify-start"
@@ -1843,6 +2733,27 @@ export function ChatTab({
         </div>
         </div>
       </div>
+
+      {/* Floating Scroll to Top Button - Shows when scrolled down */}
+      {showScrollToTop && (
+        <Button
+          onClick={handleScrollToTop}
+          className="fixed bottom-24 right-4 sm:right-6 z-[100] w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground animate-fade-in border-2 border-white"
+          size="icon"
+        >
+          <ChevronUp className="w-6 h-6 sm:w-7 sm:h-7" />
+        </Button>
+      )}
+
+      {/* Fullscreen Media Preview */}
+      {fullscreenMedia && (
+        <MediaFullscreenPreview
+          type={fullscreenMedia.type}
+          url={fullscreenMedia.url}
+          title={fullscreenMedia.title}
+          onClose={() => setFullscreenMedia(null)}
+        />
+      )}
     </div>
   );
 }

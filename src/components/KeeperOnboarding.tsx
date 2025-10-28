@@ -9,18 +9,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Alert, AlertDescription } from './ui/alert';
 import { UserProfile } from '../App';
-import { ArrowLeft, Copy, QrCode, Share2, Shield, Eye, Calendar as CalendarIcon, Upload, X } from 'lucide-react';
+import { ArrowLeft, Shield, Eye, Calendar as CalendarIcon, Upload, X, Loader2, AlertCircle, Send, Copy, Check, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { format } from 'date-fns@4.1.0';
 import { AvatarCropper } from './AvatarCropper';
 
 interface KeeperOnboardingProps {
-  onComplete: (profile: UserProfile) => void;
+  onComplete: (profile: UserProfile, invitationCode?: string) => void;
   onBack: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) {
+export function KeeperOnboarding({ onComplete, onBack, isLoading = false, error = null }: KeeperOnboardingProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [profile, setProfile] = useState<Partial<UserProfile>>({
     name: '',
@@ -46,6 +49,13 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
     allowAI: true,
     publicUploads: false
   });
+  
+  // Invitation state
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [invitationCode, setInvitationCode] = useState<string | null>(null);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [skipInvitation, setSkipInvitation] = useState(false);
 
   const keeperAvatarInputRef = useRef<HTMLInputElement>(null);
   const storytellerAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -55,9 +65,6 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
   const [tempKeeperImage, setTempKeeperImage] = useState<string>('');
   const [tempStorytellerImage, setTempStorytellerImage] = useState<string>('');
   const [birthdayPopoverOpen, setBirthdayPopoverOpen] = useState(false);
-
-  const inviteCode = 'FAM-2024-XY9K';
-  const inviteLink = `https://adoras.ai/join/${inviteCode}`;
 
   const handleKeeperAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,15 +150,43 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
     }
   };
 
+  const generateInvitationCode = () => {
+    // Generate a simple alphanumeric code for now
+    // The backend will create the actual invitation when signup completes
+    const prefix = 'FAM';
+    const year = new Date().getFullYear();
+    const randomChars = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `${prefix}-${year}-${randomChars}`;
+  };
+
+  const handleCopyCode = async () => {
+    if (invitationCode) {
+      try {
+        await navigator.clipboard.writeText(invitationCode);
+        setCodeCopied(true);
+        toast.success('Code copied to clipboard!');
+        setTimeout(() => setCodeCopied(false), 2000);
+      } catch (err) {
+        toast.error('Failed to copy code');
+      }
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < 6) {
+      // Generate invitation code when moving to step 4 (Invite step)
+      if (currentStep === 3 && !invitationCode) {
+        setInvitationCode(generateInvitationCode());
+      }
       setCurrentStep(currentStep + 1);
     } else {
+      // Complete onboarding with all data including invitation code
       onComplete({
         ...profile,
-        inviteCode,
         storytellerInfo,
-      } as UserProfile);
+        invitationCode: skipInvitation ? undefined : invitationCode || undefined,
+        phoneNumber: skipInvitation ? undefined : phoneNumber || undefined,
+      } as UserProfile, invitationCode || undefined);
     }
   };
 
@@ -163,11 +198,6 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
     }
   };
 
-  const copyInviteLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    toast.success('Invite link copied to clipboard!');
-  };
-
   const isStepValid = () => {
     switch (currentStep) {
       case 2:
@@ -175,11 +205,11 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
       case 3:
         return storytellerInfo.name && storytellerInfo.birthday && storytellerInfo.relationship;
       case 4:
-        return true; // Purpose explanation, no validation needed
+        return true; // Invitation step - optional
       case 5:
-        return true; // Invite step, no validation needed
+        return true; // How it works - no validation needed
       case 6:
-        return true; // Privacy settings, no validation needed
+        return true; // Privacy settings - no validation needed
       default:
         return true;
     }
@@ -444,42 +474,82 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
       case 4:
         return (
           <div className="min-h-[400px] sm:min-h-[450px] flex flex-col justify-between">
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-[#36453B]">How it works</h2>
-                <p className="text-muted-foreground">
-                  Building memories together is simple
+                <h2 className="text-2xl font-bold text-[#36453B]">Invite Your Storyteller</h2>
+                <p className="text-muted-foreground text-sm">
+                  Send them an invitation to join Adoras
                 </p>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="bg-[rgba(17,17,18,0.2)] p-2 rounded-full">
-                    <span className="text-[rgb(54,69,59)] font-bold text-sm">1</span>
+
+              {!skipInvitation ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Their Phone Number (Optional)</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="(555) 123-4567"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      We'll send them an SMS with your invitation code
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-[rgb(54,69,59)]">Send daily prompts</h4>
-                    <p className="text-sm text-muted-foreground">Ask questions that spark meaningful conversations</p>
-                  </div>
+
+                  {invitationCode && (
+                    <div className="space-y-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <Label>Your Invitation Code</Label>
+                      <div className="flex items-center space-x-2">
+                        <div className="flex-1 bg-white p-3 rounded border text-center">
+                          <code className="text-lg font-bold text-primary tracking-wider">
+                            {invitationCode}
+                          </code>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleCopyCode}
+                          className="flex-shrink-0"
+                        >
+                          {codeCopied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Share this code with {storytellerInfo.name} to connect
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSkipInvitation(true)}
+                    className="w-full"
+                  >
+                    Skip for now
+                  </Button>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="bg-[rgba(17,17,18,0.2)] p-2 rounded-full">
-                    <span className="text-[rgb(54,69,59)] font-bold text-sm">2</span>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted rounded-lg text-center">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      You can invite {storytellerInfo.name} later from your dashboard
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-[rgb(54,69,59)]">Share stories & media</h4>
-                    <p className="text-sm text-muted-foreground">Exchange photos, voice memos, and messages</p>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSkipInvitation(false)}
+                    className="w-full"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Invitation Now
+                  </Button>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="bg-[rgba(17,17,18,0.2)] p-2 rounded-full">
-                    <span className="text-[rgb(54,69,59)] font-bold text-sm">3</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-[rgb(54,69,59)]">Build your timeline</h4>
-                    <p className="text-sm text-muted-foreground">AI organizes your memories into a beautiful timeline</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         );
@@ -489,32 +559,38 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
           <div className="min-h-[400px] sm:min-h-[450px] flex flex-col justify-between">
             <div className="space-y-6">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-[#36453B]">Invite your storyteller</h2>
+                <h2 className="text-2xl font-bold text-[#36453B]">How it works</h2>
                 <p className="text-muted-foreground">
-                  Send them this link to connect
+                  Building memories together is simple
                 </p>
               </div>
               <div className="space-y-4">
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-dashed border-blue-200">
-                  <div className="flex items-center justify-center space-x-2 mb-3">
-                    <QrCode className="w-5 h-5 text-muted-foreground" />
-                    <span className="font-mono text-lg">{inviteCode}</span>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-[rgba(17,17,18,0.2)] p-2 rounded-full flex-shrink-0">
+                    <span className="text-[rgb(54,69,59)] font-bold text-sm">1</span>
                   </div>
-                  <div className="text-center space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {inviteLink}
-                    </p>
-                    <Button onClick={copyInviteLink} variant="outline" size="sm" className="w-full">
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Link
-                    </Button>
+                  <div>
+                    <h4 className="font-semibold text-[rgb(54,69,59)]">Send daily prompts</h4>
+                    <p className="text-sm text-muted-foreground">Ask questions that spark meaningful conversations</p>
                   </div>
                 </div>
-                <div className="text-center">
-                  <Button variant="ghost" size="sm">
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share via Message
-                  </Button>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-[rgba(17,17,18,0.2)] p-2 rounded-full flex-shrink-0">
+                    <span className="text-[rgb(54,69,59)] font-bold text-sm">2</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[rgb(54,69,59)]">Share stories & media</h4>
+                    <p className="text-sm text-muted-foreground">Exchange photos, voice memos, and messages</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-[rgba(17,17,18,0.2)] p-2 rounded-full flex-shrink-0">
+                    <span className="text-[rgb(54,69,59)] font-bold text-sm">3</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-[rgb(54,69,59)]">Build your timeline</h4>
+                    <p className="text-sm text-muted-foreground">AI organizes your memories into a beautiful timeline</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -534,7 +610,7 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-start space-x-3">
-                    <Shield className="w-5 h-5 text-green-600 mt-0.5" />
+                    <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                     <div className="space-y-1">
                       <h4 className="font-semibold">AI Organization</h4>
                       <p className="text-sm text-muted-foreground">
@@ -551,7 +627,7 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
                 </div>
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-start space-x-3">
-                    <Eye className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <Eye className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                     <div className="space-y-1">
                       <h4 className="font-semibold">Shared Visibility</h4>
                       <p className="text-sm text-muted-foreground">
@@ -565,6 +641,11 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
                       setPrivacySettings(prev => ({ ...prev, publicUploads: !checked }))
                     }
                   />
+                </div>
+                <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+                  <p className="text-sm text-primary text-center">
+                    Your memories are private and secure. Only you and your connected storytellers can see them.
+                  </p>
                 </div>
               </div>
             </div>
@@ -605,18 +686,33 @@ export function KeeperOnboarding({ onComplete, onBack }: KeeperOnboardingProps) 
         >
           {currentStep === 6 ? 'Complete Setup' : 'Continue'}
         </Button>
+
+        {isLoading && (
+          <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/50 flex items-center justify-center">
+            <Loader2 className="w-10 h-10 text-white animate-spin" />
+          </div>
+        )}
+
+        {error && (
+          <Alert className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
       </Card>
       
       {/* Avatar Cropper Dialogs */}
       <AvatarCropper
-        key={`keeper-${tempKeeperImage}`} // Unique key with prefix
+        key={`keeper-${tempKeeperImage}`}
         imageUrl={tempKeeperImage}
         isOpen={showKeeperCropper}
         onCropComplete={handleKeeperCropComplete}
         onCancel={handleKeeperCropCancel}
       />
       <AvatarCropper
-        key={`storyteller-${tempStorytellerImage}`} // Unique key with prefix
+        key={`storyteller-${tempStorytellerImage}`}
         imageUrl={tempStorytellerImage}
         isOpen={showStorytellerCropper}
         onCropComplete={handleStorytellerCropComplete}

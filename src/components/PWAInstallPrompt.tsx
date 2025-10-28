@@ -95,7 +95,7 @@ export function PWAInstallPrompt({ onClose }: PWAInstallPromptProps) {
   return (
     <>
       {/* Install Prompt Banner */}
-      <Card className="fixed bottom-4 left-4 right-4 z-50 shadow-lg border-2 border-primary/20 animate-fade-in mx-auto max-w-md">
+      <Card className="fixed bottom-[5.5rem] left-4 right-4 z-50 shadow-lg border-2 border-primary/20 animate-fade-in mx-auto max-w-md">
         <div className="p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">

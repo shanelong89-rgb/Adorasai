@@ -3,16 +3,20 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Alert, AlertDescription } from './ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { UserProfile, AppLanguage } from '../App';
-import { ArrowLeft, Heart, Camera, MessageCircle, Mic, Globe } from 'lucide-react';
+import { ArrowLeft, Heart, Camera, MessageCircle, Mic, Globe, Loader2, AlertCircle } from 'lucide-react';
+import { apiClient } from '../utils/api/client';
 
 interface TellerOnboardingProps {
-  onComplete: (profile: UserProfile) => void;
+  onComplete: (profile: UserProfile & { invitationCode: string }) => void;
   onBack: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export function TellerOnboarding({ onComplete, onBack }: TellerOnboardingProps) {
+export function TellerOnboarding({ onComplete, onBack, isLoading = false, error = null }: TellerOnboardingProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [inviteCode, setInviteCode] = useState('');
   const [profile, setProfile] = useState<Partial<UserProfile>>({
@@ -20,12 +24,15 @@ export function TellerOnboarding({ onComplete, onBack }: TellerOnboardingProps) 
     relationship: 'Teller',
     bio: ''
   });
+  const [keeperName, setKeeperName] = useState<string>('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   const handleNext = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete(profile as UserProfile);
+      onComplete({ ...profile, invitationCode: inviteCode } as UserProfile & { invitationCode: string });
     }
   };
 
@@ -37,20 +44,57 @@ export function TellerOnboarding({ onComplete, onBack }: TellerOnboardingProps) 
     }
   };
 
-  const handleInviteSubmit = () => {
-    // Simulate auto-filling profile from invite
-    setProfile({
-      name: 'Teller',
-      relationship: 'Mother',
-      bio: 'Loving storyteller ready to share memories'
-    });
-    setCurrentStep(2);
+  const handleInviteSubmit = async () => {
+    // If no code entered, skip verification
+    if (!inviteCode.trim()) {
+      handleSkipInvitation();
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationError(null);
+
+    try {
+      // Verify invitation code with backend
+      const response = await apiClient.verifyInvitationCode(inviteCode);
+
+      if (!response.success) {
+        setVerificationError(response.error || 'Invalid invitation code');
+        return;
+      }
+
+      // Store keeper info
+      if (response.keeper) {
+        setKeeperName(response.keeper.name);
+      }
+
+      // Show dev mode indicator if applicable
+      if ((response as any).devMode) {
+        console.log('🧪 DEV MODE: Using auto-generated test invitation');
+      }
+
+      // Move to next step
+      setCurrentStep(2);
+    } catch (err) {
+      console.error('Error verifying invitation code:', err);
+      setVerificationError('Failed to verify invitation code. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleSkipInvitation = () => {
+    // Allow user to skip invitation and connect later
+    setInviteCode(''); // Clear any entered code
+    setKeeperName(''); // Clear keeper name
+    setVerificationError(null); // Clear any errors
+    setCurrentStep(2); // Move to profile step
   };
 
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return inviteCode.trim().length > 0;
+        return true; // Always allow moving forward - code is optional
       case 2:
         return profile.name;
       default:
@@ -77,19 +121,33 @@ export function TellerOnboarding({ onComplete, onBack }: TellerOnboardingProps) 
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="inviteCode">Invitation Code</Label>
+                  <Label htmlFor="inviteCode">Invitation Code (Optional)</Label>
                   <Input
-                    id="inviteCode"
+                    id="invite-code"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value)}
-                    placeholder="Enter invitation code (e.g., FAM-2024-XY9K)"
+                    placeholder="Enter invitation code (e.g., FAM-2025-ABC123)"
                   />
                 </div>
+                {verificationError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="ml-4">
+                      {verificationError}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="bg-green-50 p-4 rounded-lg">
                   <p className="text-sm text-green-800">
-                    This code was shared by your keeper to connect your accounts safely.
+                    If you have an invitation code from your keeper, enter it above. Otherwise, you can skip and connect later.
                   </p>
                 </div>
+                <Button
+                  onClick={handleSkipInvitation}
+                  className="w-full h-10 sm:h-11 text-sm sm:text-base mt-4"
+                >
+                  Skip Invitation
+                </Button>
               </div>
             </div>
           </div>
@@ -106,11 +164,20 @@ export function TellerOnboarding({ onComplete, onBack }: TellerOnboardingProps) 
                 </p>
               </div>
               <div className="space-y-4">
-                <div className="bg-[rgb(255,255,255)] p-4 rounded-lg">
-                  <p className="text-sm text-[rgb(54,69,59)]">
-                    <strong>Connected to:</strong> Alex (Legacy Keeper)
-                  </p>
-                </div>
+                {keeperName && (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <p className="text-sm text-green-800">
+                      <strong>✓ Connected to:</strong> {keeperName} (Legacy Keeper)
+                    </p>
+                  </div>
+                )}
+                {!keeperName && (
+                  <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                    <p className="text-sm text-amber-800">
+                      <strong>Note:</strong> You can connect with a keeper later from your dashboard.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="name">Your Name</Label>
                   <Input
@@ -242,12 +309,25 @@ export function TellerOnboarding({ onComplete, onBack }: TellerOnboardingProps) 
 
         {renderStep()}
 
+        {error && (
+          <Alert className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="ml-4">
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Button 
           onClick={currentStep === 1 ? handleInviteSubmit : handleNext} 
           className="w-full h-10 sm:h-11 text-sm sm:text-base" 
-          disabled={!isStepValid()}
+          disabled={!isStepValid() || isLoading || isVerifying}
         >
-          {currentStep === 3 ? 'Get Started' : 'Continue'}
+          {(isLoading || isVerifying) ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            currentStep === 3 ? 'Get Started' : 'Continue'
+          )}
         </Button>
       </Card>
     </div>

@@ -1,0 +1,49 @@
+═══════════════════════════════════════════════════════════════════════════════
+VAPID KEYS - COPY & PASTE INTO SUPABASE
+═══════════════════════════════════════════════════════════════════════════════
+
+📍 WHERE TO ADD THESE:
+   Supabase Dashboard → Your Project → Edge Functions → Secrets Tab
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SECRET 1: VAPID_PUBLIC_KEY
+
+Name:  VAPID_PUBLIC_KEY
+Value: BNx8XqFJvHzQE_9YhJNnHvN0KkVGXlNQmLcVRhZpBN9d8jMGcHQz7X1vWxKLN8mQpRtVyYzA2bCdEfGhIjKlMnO
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SECRET 2: VAPID_PRIVATE_KEY
+
+Name:  VAPID_PRIVATE_KEY
+Value: 8K9L0mN1oP2qR3sT4uV5wX6yZ7aB8cD9eF0gH1iJ2kL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SECRET 3: VAPID_SUBJECT
+
+Name:  VAPID_SUBJECT
+Value: mailto:adoras-notifications@example.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  IMPORTANT: VAPID_PRIVATE_KEY MUST STAY SECRET!
+   ✅ Safe: Stored in Supabase Edge Functions (encrypted)
+   ❌ Never: Commit to git, share publicly, or put in frontend code
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 ALSO ENABLE SUPABASE REALTIME:
+   Supabase Dashboard → Settings → API → Realtime → Toggle ON
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️  WAIT 2 MINUTES AFTER SETUP!
+   Changes need time to propagate through Supabase's servers.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 DETAILED INSTRUCTIONS: /AUTOMATIC_NOTIFICATION_SETUP.md
+
+═══════════════════════════════════════════════════════════════════════════════

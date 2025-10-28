@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download Adoras Touch Icons</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+      background: #F5F9E9;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: #36453B;
+      font-size: 32px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+    
+    .status {
+      background: white;
+      border: 2px solid #36453B;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .status.loading {
+      border-color: #F59E0B;
+      background: #FEF3C7;
+    }
+    
+    .status.success {
+      border-color: #10B981;
+      background: #D1FAE5;
+    }
+    
+    .status.error {
+      border-color: #EF4444;
+      background: #FEE2E2;
+    }
+    
+    .status-text {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .loading .status-text { color: #92400E; }
+    .success .status-text { color: #065F46; }
+    .error .status-text { color: #991B1B; }
+    
+    .btn-primary {
+      background: #36453B;
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 12px;
+      margin-bottom: 12px;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary:hover {
+      background: #2a3830;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(54, 69, 59, 0.3);
+    }
+    
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .icons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+    
+    .icon-card {
+      background: white;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .icon-card:hover {
+      border-color: #36453B;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .icon-preview {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #F3F4F6;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    
+    .icon-preview canvas {
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    
+    .icon-size {
+      font-weight: 700;
+      color: #36453B;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    
+    .icon-filename {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+    
+    .btn-download {
+      background: #10B981;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    
+    .btn-download:hover {
+      background: #059669;
+    }
+    
+    .btn-download:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .instructions {
+      background: #E0E7FF;
+      border: 2px solid #6366F1;
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 32px;
+    }
+    
+    .instructions h2 {
+      color: #312E81;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+    
+    .instructions ol {
+      color: #4338CA;
+      padding-left: 24px;
+    }
+    
+    .instructions li {
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+    
+    .instructions code {
+      background: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #DC2626;
+    }
+    
+    .source-preview {
+      margin-top: 32px;
+      text-align: center;
+    }
+    
+    .source-preview img {
+      max-width: 200px;
+      border: 2px solid #36453B;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .source-label {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #666;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 Adoras Touch Icon Generator</h1>
+    <p class="subtitle">Automatically downloads and resizes your touch icon for iOS</p>
+    
+    <div id="status" class="status loading">
+      <div class="status-text">⏳ Loading your icon from Shopify...</div>
+    </div>
+    
+    <div>
+      <button id="generateBtn" class="btn-primary" disabled>Generate All Icons</button>
+      <button id="downloadAllBtn" class="btn-primary" disabled>Download All (ZIP)</button>
+    </div>
+    
+    <div class="source-preview">
+      <img id="sourceImg" alt="Source Icon" style="display: none;">
+      <div class="source-label">Source Image (will load automatically)</div>
+    </div>
+    
+    <div id="iconsGrid" class="icons-grid"></div>
+    
+    <div class="instructions">
+      <h2>📝 Next Steps After Download</h2>
+      <ol>
+        <li>Click <strong>"Generate All Icons"</strong> above</li>
+        <li>Click <strong>"Download All (ZIP)"</strong> or download individually</li>
+        <li>Extract the ZIP file (if using bulk download)</li>
+        <li>Upload these 5 PNG files to your <code>/public</code> folder:
+          <ul style="margin-top: 8px;">
+            <li><code>apple-touch-icon.png</code></li>
+            <li><code>apple-touch-icon-152.png</code></li>
+            <li><code>apple-touch-icon-120.png</code></li>
+            <li><code>icon-192.png</code></li>
+            <li><code>icon-512.png</code></li>
+          </ul>
+        </li>
+        <li>Delete any existing <code>.html</code> files in <code>/public</code> (like <code>icon-192.png.html</code>)</li>
+        <li><strong>Delete the Adoras app</strong> from your iPhone home screen</li>
+        <li>Open Safari and visit your Adoras URL</li>
+        <li>Tap Share → <strong>"Add to Home Screen"</strong></li>
+        <li>✅ Your custom Adoras icon should now appear!</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    const ICON_URL = 'https://cdn.shopify.com/s/files/1/0504/5963/9996/files/touchicon.png?v=1761317408';
+    
+    const ICON_CONFIGS = [
+      { size: 180, filename: 'apple-touch-icon.png', description: 'iOS Default' },
+      { size: 152, filename: 'apple-touch-icon-152.png', description: 'iPad' },
+      { size: 120, filename: 'apple-touch-icon-120.png', description: 'iPhone' },
+      { size: 192, filename: 'icon-192.png', description: 'Android' },
+      { size: 512, filename: 'icon-512.png', description: 'PWA Splash' }
+    ];
+    
+    let sourceImage = null;
+    let generatedCanvases = {};
+    
+    const statusEl = document.getElementById('status');
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const iconsGrid = document.getElementById('iconsGrid');
+    const sourceImg = document.getElementById('sourceImg');
+    
+    // Load source image with CORS proxy if needed
+    function loadSourceImage() {
+      const img = new Image();
+      // Try without crossOrigin first for better compatibility
+      
+      img.onload = function() {
+        sourceImage = img;
+        sourceImg.src = img.src;
+        sourceImg.style.display = 'block';
+        
+        statusEl.className = 'status success';
+        statusEl.innerHTML = '<div class="status-text">✅ Icon loaded successfully! Click "Generate All Icons" to continue.</div>';
+        generateBtn.disabled = false;
+      };
+      
+      img.onerror = function() {
+        // Try with CORS proxy
+        statusEl.innerHTML = '<div class="status-text">⏳ Trying alternative loading method...</div>';
+        
+        const img2 = new Image();
+        img2.crossOrigin = 'anonymous';
+        
+        img2.onload = function() {
+          sourceImage = img2;
+          sourceImg.src = img2.src;
+          sourceImg.style.display = 'block';
+          
+          statusEl.className = 'status success';
+          statusEl.innerHTML = '<div class="status-text">✅ Icon loaded successfully! Click "Generate All Icons" to continue.</div>';
+          generateBtn.disabled = false;
+        };
+        
+        img2.onerror = function() {
+          statusEl.className = 'status error';
+          statusEl.innerHTML = '<div class="status-text">❌ Could not load icon automatically. Please download manually from Shopify and use an image resizer like <a href="https://www.iloveimg.com/resize-image" target="_blank" style="color: #DC2626; text-decoration: underline;">iloveimg.com</a></div>';
+        };
+        
+        img2.src = ICON_URL;
+      };
+      
+      // Load without cache busting first
+      img.src = ICON_URL;
+    }
+    
+    // Generate a single icon
+    function generateIcon(size, filename) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      
+      const ctx = canvas.getContext('2d', { willReadFrequently: false });
+      
+      // Use high quality scaling
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw the image scaled to fit
+      ctx.drawImage(sourceImage, 0, 0, size, size);
+      
+      return canvas;
+    }
+    
+    // Generate all icons
+    function generateAllIcons() {
+      iconsGrid.innerHTML = '';
+      generatedCanvases = {};
+      
+      ICON_CONFIGS.forEach(config => {
+        const canvas = generateIcon(config.size, config.filename);
+        generatedCanvases[config.filename] = canvas;
+        
+        // Create card
+        const card = document.createElement('div');
+        card.className = 'icon-card';
+        
+        const preview = document.createElement('div');
+        preview.className = 'icon-preview';
+        preview.appendChild(canvas);
+        
+        const sizeLabel = document.createElement('div');
+        sizeLabel.className = 'icon-size';
+        sizeLabel.textContent = `${config.size}×${config.size}`;
+        
+        const descLabel = document.createElement('div');
+        descLabel.style.fontSize = '12px';
+        descLabel.style.color = '#999';
+        descLabel.style.marginBottom = '8px';
+        descLabel.textContent = config.description;
+        
+        const filename = document.createElement('div');
+        filename.className = 'icon-filename';
+        filename.textContent = config.filename;
+        
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn-download';
+        downloadBtn.textContent = '⬇ Download';
+        downloadBtn.onclick = () => downloadIcon(config.filename);
+        
+        card.appendChild(preview);
+        card.appendChild(sizeLabel);
+        card.appendChild(descLabel);
+        card.appendChild(filename);
+        card.appendChild(downloadBtn);
+        
+        iconsGrid.appendChild(card);
+      });
+      
+      statusEl.className = 'status success';
+      statusEl.innerHTML = '<div class="status-text">✅ All icons generated! Download each one individually below. After downloading, send them to the AI assistant who will add them to your project.</div>';
+      downloadAllBtn.disabled = false;
+    }
+    
+    // Download a single icon
+    function downloadIcon(filename) {
+      const canvas = generatedCanvases[filename];
+      if (!canvas) return;
+      
+      try {
+        canvas.toBlob(blob => {
+          if (!blob) {
+            alert('Failed to generate icon. Please try again or use a different browser.');
+            return;
+          }
+          
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Clean up after a delay
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, 'image/png', 1.0);
+      } catch (error) {
+        console.error('Download error:', error);
+        alert('Failed to download. Your browser may be blocking downloads. Please try a different browser or use the manual method.');
+      }
+    }
+    
+    // Download all icons as ZIP (sequential downloads)
+    async function downloadAllAsZip() {
+      statusEl.className = 'status loading';
+      statusEl.innerHTML = '<div class="status-text">⏳ Downloading all icons... (Please wait for each download)</div>';
+      
+      for (let i = 0; i < ICON_CONFIGS.length; i++) {
+        const config = ICON_CONFIGS[i];
+        downloadIcon(config.filename);
+        
+        // Wait between downloads to avoid browser blocking
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+      
+      statusEl.className = 'status success';
+      statusEl.innerHTML = '<div class="status-text">✅ All icons downloaded! Check your Downloads folder. Once you have all 5 files, tell the AI assistant and they will add them to your project!</div>';
+    }
+    
+    // Event listeners
+    generateBtn.addEventListener('click', generateAllIcons);
+    downloadAllBtn.addEventListener('click', downloadAllAsZip);
+    
+    // Auto-load on page load
+    window.addEventListener('load', loadSourceImage);
+  </script>
+</body>
+</html>

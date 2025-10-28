@@ -1,8 +1,8 @@
 // Adoras Service Worker - PWA Support
-// Version 1.0.0
+// Version 1.3.0 - Enhanced iOS Notification Support
 
-const CACHE_NAME = 'adoras-v1';
-const RUNTIME_CACHE = 'adoras-runtime-v1';
+const CACHE_NAME = 'adoras-v3';
+const RUNTIME_CACHE = 'adoras-runtime-v3';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -21,11 +21,21 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[SW] Precaching assets');
-        return cache.addAll(PRECACHE_ASSETS);
+        // Try to cache assets, but don't fail if some are missing
+        return cache.addAll(PRECACHE_ASSETS).catch((error) => {
+          console.warn('[SW] Some assets failed to cache, continuing anyway:', error);
+          // Continue with installation even if caching fails
+          return Promise.resolve();
+        });
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[SW] Skipping waiting...');
+        return self.skipWaiting();
+      })
       .catch((error) => {
-        console.error('[SW] Precaching failed:', error);
+        console.error('[SW] Install failed:', error);
+        // Still try to skip waiting
+        return self.skipWaiting();
       })
   );
 });
@@ -37,6 +47,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
+        console.log('[SW] Current caches:', cacheNames);
         return Promise.all(
           cacheNames
             .filter((cacheName) => {
@@ -48,7 +59,18 @@ self.addEventListener('activate', (event) => {
             })
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => {
+        console.log('[SW] Claiming clients...');
+        return self.clients.claim();
+      })
+      .then(() => {
+        console.log('[SW] ✅ Service worker activated and ready!');
+      })
+      .catch((error) => {
+        console.error('[SW] Activation error:', error);
+        // Still try to claim clients
+        return self.clients.claim();
+      })
   );
 });
 
@@ -161,32 +183,259 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Handle push notifications (future enhancement)
+// Handle push notifications - iMessage & Duolingo Style
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received:', event);
+  console.log('[SW] Push notification received');
   
-  const options = {
-    body: event.data ? event.data.text() : 'New memory shared!',
+  let notificationData = {
+    title: 'Adoras',
+    body: 'New memory shared!',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
-    tag: 'adoras-notification',
-    requireInteraction: false
+    data: {},
+    type: 'message', // message, prompt, milestone
   };
 
+  // Parse push data if available
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      notificationData = {
+        title: data.title || 'Adoras',
+        body: data.body || 'New memory shared!',
+        icon: data.icon || '/icon-192.png',
+        badge: data.badge || '/icon-192.png',
+        data: data.data || {},
+        tag: data.tag || 'adoras-notification',
+        type: data.type || 'message',
+        requireInteraction: data.requireInteraction || false,
+        image: data.image,
+        silent: data.silent || false,
+      };
+    } catch (error) {
+      console.error('[SW] Error parsing push data:', error);
+      notificationData.body = event.data.text();
+    }
+  }
+
+  // Determine notification style based on type
+  let options = {};
+  
+  if (notificationData.type === 'prompt') {
+    // Duolingo-style gamified daily prompt
+    options = {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: [100, 50, 100, 50, 100, 50, 200], // Fun vibration pattern
+      tag: 'daily-prompt',
+      requireInteraction: true, // Make it persistent like Duolingo
+      data: notificationData.data,
+      image: notificationData.image,
+      silent: false,
+      actions: [
+        {
+          action: 'answer',
+          title: '✍️ Answer Now',
+          icon: '/icon-192.png',
+        },
+        {
+          action: 'remind',
+          title: '🔔 Remind Later',
+        },
+      ],
+      // Gamification elements
+      renotify: true,
+      timestamp: Date.now(),
+    };
+  } else if (notificationData.type === 'message' || notificationData.type === 'memory') {
+    // iMessage-style notification for new messages/memories
+    options = {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: [50, 100, 50], // Short, subtle vibration like iMessage
+      tag: notificationData.tag || 'adoras-message',
+      requireInteraction: false,
+      data: notificationData.data,
+      image: notificationData.image,
+      silent: notificationData.silent,
+      actions: [
+        {
+          action: 'open',
+          title: 'Open',
+          icon: '/icon-192.png',
+        },
+        {
+          action: 'reply',
+          title: 'Reply',
+        },
+      ],
+      timestamp: Date.now(),
+    };
+  } else if (notificationData.type === 'milestone') {
+    // Celebration style for milestones
+    options = {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: [100, 50, 100, 50, 100, 50, 200, 50, 200],
+      tag: 'milestone',
+      requireInteraction: true,
+      data: notificationData.data,
+      image: notificationData.image,
+      actions: [
+        {
+          action: 'celebrate',
+          title: '🎉 View',
+        },
+      ],
+    };
+  } else {
+    // Default notification
+    options = {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: [200, 100, 200],
+      tag: notificationData.tag || 'adoras-notification',
+      requireInteraction: notificationData.requireInteraction || false,
+      data: notificationData.data,
+      actions: [
+        {
+          action: 'open',
+          title: 'Open App',
+        },
+        {
+          action: 'close',
+          title: 'Dismiss',
+        },
+      ],
+    };
+  }
+
   event.waitUntil(
-    self.registration.showNotification('Adoras', options)
+    (async () => {
+      // Show notification
+      await self.registration.showNotification(notificationData.title, options);
+      
+      // Update badge count for iOS (if supported)
+      if ('setAppBadge' in navigator) {
+        try {
+          // Get current badge count from data or default to 1
+          const badgeCount = notificationData.data?.badgeCount || 1;
+          await navigator.setAppBadge(badgeCount);
+        } catch (error) {
+          console.log('[SW] Badge API not supported or failed:', error);
+        }
+      }
+      
+      // iOS-specific: Try to vibrate even if API not available in options
+      if (navigator.vibrate && options.vibrate) {
+        navigator.vibrate(options.vibrate);
+      }
+    })()
   );
 });
 
-// Handle notification clicks
+// Handle notification clicks - Enhanced with action handling
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
+  console.log('[SW] Notification clicked:', event.action);
   
   event.notification.close();
+  
+  // Clear badge on iOS when notification is clicked
+  if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(() => {
+      // Silently fail if not supported
+    });
+  }
 
+  // Handle action buttons
+  if (event.action === 'close') {
+    return;
+  }
+
+  if (event.action === 'remind') {
+    // Reschedule notification for 2 hours later
+    event.waitUntil(
+      self.registration.showNotification('⏰ Daily Prompt Reminder', {
+        body: 'Don\'t forget to share your memory today!',
+        icon: '/icon-192.png',
+        tag: 'daily-prompt-reminder',
+        timestamp: Date.now() + 2 * 60 * 60 * 1000,
+        actions: [
+          { action: 'answer', title: '✍️ Answer Now' },
+        ],
+      })
+    );
+    return;
+  }
+
+  if (event.action === 'reply') {
+    // Open app directly to chat tab
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          // Focus existing window if available
+          for (const client of clientList) {
+            if (client.url.includes(self.location.origin)) {
+              client.postMessage({
+                type: 'NAVIGATE_TO_CHAT',
+                data: event.notification.data,
+              });
+              return client.focus();
+            }
+          }
+          
+          // Otherwise, open new window to chat
+          if (clients.openWindow) {
+            return clients.openWindow('/?tab=chat');
+          }
+        })
+    );
+    return;
+  }
+
+  if (event.action === 'answer' || event.action === 'celebrate') {
+    // Open app to prompts tab
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          for (const client of clientList) {
+            if (client.url.includes(self.location.origin)) {
+              client.postMessage({
+                type: 'NAVIGATE_TO_PROMPTS',
+                data: event.notification.data,
+              });
+              return client.focus();
+            }
+          }
+          
+          if (clients.openWindow) {
+            return clients.openWindow('/?tab=prompts');
+          }
+        })
+    );
+    return;
+  }
+
+  // Default: Open app (or focus if already open)
   event.waitUntil(
-    clients.openWindow('/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Focus existing window if available
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin)) {
+            return client.focus();
+          }
+        }
+        
+        // Otherwise, open new window
+        if (clients.openWindow) {
+          return clients.openWindow('/');
+        }
+      })
   );
 });
 

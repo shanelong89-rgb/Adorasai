@@ -258,32 +258,80 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
       
       // For photos, prioritize photoDate from EXIF
       if (memory.type === 'photo' && memory.photoDate) {
-        chronologicalDate = memory.photoDate;
+        chronologicalDate = memory.photoDate instanceof Date ? memory.photoDate : new Date(memory.photoDate);
       }
       // For videos, prioritize videoDate from EXIF
       else if (memory.type === 'video' && memory.videoDate) {
-        chronologicalDate = memory.videoDate;
+        chronologicalDate = memory.videoDate instanceof Date ? memory.videoDate : new Date(memory.videoDate);
       }
       // For other types or if EXIF date is not available, parse content for natural language dates
       else {
         const parsedDate = parseChronologicalDate(memory.content, userAge, partnerBirthday);
-        chronologicalDate = parsedDate || memory.timestamp;
+        const timestamp = memory.timestamp instanceof Date ? memory.timestamp : new Date(memory.timestamp);
+        chronologicalDate = parsedDate || timestamp;
       }
       
       return {
         ...memory,
         chronologicalDate,
-        displayDate: memory.timestamp
+        displayDate: memory.timestamp instanceof Date ? memory.timestamp : new Date(memory.timestamp)
       };
     });
   }, [memories, userAge]);
 
   const filteredMemories = enrichedMemories
     .filter(memory => {
-      const matchesSearch = searchQuery === '' || 
-        memory.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        memory.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        formatDate(memory.timestamp).toLowerCase().includes(searchQuery.toLowerCase());
+      if (searchQuery === '') {
+        // No search query, only filter by category
+        const matchesCategory = 
+          selectedCategory === 'All' || 
+          (selectedCategory === 'Prompts' && memory.promptQuestion) ||
+          (selectedCategory !== 'Prompts' && memory.category === selectedCategory);
+        return matchesCategory;
+      }
+      
+      const query = searchQuery.toLowerCase();
+      
+      // Comprehensive search across all memory fields
+      const matchesSearch = 
+        // Basic content and tags
+        memory.content.toLowerCase().includes(query) ||
+        memory.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        formatDate(new Date(memory.timestamp)).toLowerCase().includes(query) ||
+        
+        // Notes
+        (memory.notes && memory.notes.toLowerCase().includes(query)) ||
+        
+        // Prompt question
+        (memory.promptQuestion && memory.promptQuestion.toLowerCase().includes(query)) ||
+        
+        // Photo-specific fields
+        (memory.type === 'photo' && memory.photoLocation && memory.photoLocation.toLowerCase().includes(query)) ||
+        (memory.type === 'photo' && memory.detectedPeople && memory.detectedPeople.toLowerCase().includes(query)) ||
+        (memory.type === 'photo' && memory.detectedPeople?.some(person => person.toLowerCase().includes(query))) ||
+        
+        // Video-specific fields
+        (memory.type === 'video' && memory.videoLocation && memory.videoLocation.toLowerCase().includes(query)) ||
+        (memory.type === 'video' && memory.videoPeople && memory.videoPeople.toLowerCase().includes(query)) ||
+        (memory.type === 'video' && memory.videoPeople?.some(person => person.toLowerCase().includes(query))) ||
+        
+        // Voice-specific fields
+        (memory.type === 'voice' && memory.voiceTranscript && memory.voiceTranscript.toLowerCase().includes(query)) ||
+        (memory.type === 'voice' && memory.transcript && memory.transcript.toLowerCase().includes(query)) ||
+        (memory.type === 'voice' && memory.englishTranslation && memory.englishTranslation.toLowerCase().includes(query)) ||
+        (memory.type === 'voice' && memory.voiceLanguage && memory.voiceLanguage.toLowerCase().includes(query)) ||
+        
+        // Document-specific fields - ENHANCED FOR SCANNED TEXT
+        (memory.type === 'document' && memory.documentScannedText && memory.documentScannedText.toLowerCase().includes(query)) ||
+        (memory.type === 'document' && memory.documentFileName && memory.documentFileName.toLowerCase().includes(query)) ||
+        (memory.type === 'document' && memory.documentType && memory.documentType.toLowerCase().includes(query)) ||
+        (memory.type === 'document' && memory.documentScanLanguage && memory.documentScanLanguage.toLowerCase().includes(query)) ||
+        
+        // General location field
+        (memory.location && memory.location.toLowerCase().includes(query)) ||
+        
+        // Category
+        (memory.category && memory.category.toLowerCase().includes(query));
       
       const matchesCategory = 
         selectedCategory === 'All' || 
@@ -295,9 +343,9 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
     .sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return b.chronologicalDate.getTime() - a.chronologicalDate.getTime();
+          return new Date(b.chronologicalDate).getTime() - new Date(a.chronologicalDate).getTime();
         case 'oldest':
-          return a.chronologicalDate.getTime() - b.chronologicalDate.getTime();
+          return new Date(a.chronologicalDate).getTime() - new Date(b.chronologicalDate).getTime();
         case 'category':
           return (a.category || '').localeCompare(b.category || '');
         default:
@@ -310,7 +358,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
     const data: Record<number, Record<number, Record<number, Memory[]>>> = {};
     
     filteredMemories.forEach(memory => {
-      const date = memory.chronologicalDate;
+      const date = new Date(memory.chronologicalDate);
       const year = date.getFullYear();
       const month = date.getMonth();
       const day = date.getDate();
@@ -359,8 +407,8 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
 
   // Sort prompt groups
   const sortedPrompts = Object.entries(memoriesByPrompt).sort(([, a], [, b]) => {
-    const aLatest = Math.max(...a.memories.map(m => m.chronologicalDate.getTime()));
-    const bLatest = Math.max(...b.memories.map(m => m.chronologicalDate.getTime()));
+    const aLatest = Math.max(...a.memories.map(m => new Date(m.chronologicalDate).getTime()));
+    const bLatest = Math.max(...b.memories.map(m => new Date(m.chronologicalDate).getTime()));
     if (sortBy === 'oldest') {
       return aLatest - bLatest;
     }
@@ -369,7 +417,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
 
   // Group regular memories by day
   const memoriesByDay = regularMemories.reduce((acc, memory) => {
-    const dayKey = formatDayKey(memory.chronologicalDate);
+    const dayKey = formatDayKey(new Date(memory.chronologicalDate));
     if (!acc[dayKey]) {
       acc[dayKey] = {
         date: memory.chronologicalDate,
@@ -382,9 +430,9 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
 
   const sortedDays = Object.entries(memoriesByDay).sort(([, a], [, b]) => {
     if (sortBy === 'oldest') {
-      return a.date.getTime() - b.date.getTime();
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
     }
-    return b.date.getTime() - a.date.getTime();
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
   const getCategoryIcon = (category: string) => {
@@ -435,6 +483,29 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
     setShowDayDialog(true);
   };
 
+  // Helper function to extract search context from text
+  const getSearchContext = (text: string, query: string, contextLength: number = 60): string => {
+    if (!query || !text) return text.slice(0, contextLength);
+    
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const matchIndex = lowerText.indexOf(lowerQuery);
+    
+    if (matchIndex === -1) return text.slice(0, contextLength);
+    
+    // Calculate start and end positions to show context around the match
+    const start = Math.max(0, matchIndex - Math.floor(contextLength / 2));
+    const end = Math.min(text.length, matchIndex + query.length + Math.floor(contextLength / 2));
+    
+    let excerpt = text.slice(start, end);
+    
+    // Add ellipsis if we're not at the beginning/end
+    if (start > 0) excerpt = '...' + excerpt;
+    if (end < text.length) excerpt = excerpt + '...';
+    
+    return excerpt;
+  };
+
   // Long press handlers
   const handleLongPressStart = (memory: Memory) => {
     if (userType !== 'keeper' || !onEditMemory || !onDeleteMemory) return;
@@ -445,7 +516,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
       setEditNotes(memory.notes || '');
       setEditLocation(memory.location || '');
       setEditTags(memory.tags.join(', '));
-      setEditDateTime(memory.timestamp.toISOString().slice(0, 16));
+      setEditDateTime(new Date(memory.timestamp).toISOString().slice(0, 16));
       
       // Initialize photo metadata if it's a photo
       if (memory.type === 'photo') {
@@ -471,7 +542,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
           defaultPhotoDate = memory.timestamp;
         }
         
-        setEditPhotoDate(defaultPhotoDate ? defaultPhotoDate.toISOString().slice(0, 16) : '');
+        setEditPhotoDate(defaultPhotoDate ? new Date(defaultPhotoDate).toISOString().slice(0, 16) : '');
         setEditPhotoLocation(memory.photoLocation || '');
         setEditDetectedPeople(memory.detectedPeople?.join(', ') || '');
       }
@@ -500,7 +571,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
           defaultVideoDate = memory.timestamp;
         }
         
-        setEditVideoDate(defaultVideoDate ? defaultVideoDate.toISOString().slice(0, 16) : '');
+        setEditVideoDate(defaultVideoDate ? new Date(defaultVideoDate).toISOString().slice(0, 16) : '');
         setEditVideoLocation(memory.videoLocation || '');
         setEditVideoPeople(memory.videoPeople?.join(', ') || '');
       }
@@ -615,10 +686,10 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
   const handleConfirmDelete = () => {
     if (!editingMemory || !onDeleteMemory) return;
     
+    console.log('🗑️ Confirming deletion of memory:', editingMemory.id);
     onDeleteMemory(editingMemory.id);
     setShowDeleteDialog(false);
     setEditingMemory(null);
-    toast('Memory deleted');
   };
 
   const renderMemoryCard = (memory: Memory) => {
@@ -665,7 +736,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                   setEditNotes(memory.notes || '');
                   setEditLocation(memory.location || '');
                   setEditTags(memory.tags.join(', '));
-                  setEditDateTime(memory.timestamp.toISOString().slice(0, 16));
+                  setEditDateTime(new Date(memory.timestamp).toISOString().slice(0, 16));
                   
                   // Initialize photo metadata if it's a photo
                   if (memory.type === 'photo') {
@@ -674,7 +745,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                       photoGPSCoordinates: memory.photoGPSCoordinates,
                       photoDate: memory.photoDate
                     });
-                    setEditPhotoDate(memory.photoDate ? memory.photoDate.toISOString().slice(0, 16) : '');
+                    setEditPhotoDate(memory.photoDate ? new Date(memory.photoDate).toISOString().slice(0, 16) : '');
                     setEditPhotoLocation(memory.photoLocation || '');
                     setEditDetectedPeople(memory.detectedPeople?.join(', ') || '');
                   }
@@ -686,7 +757,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                       videoGPSCoordinates: memory.videoGPSCoordinates,
                       videoDate: memory.videoDate
                     });
-                    setEditVideoDate(memory.videoDate ? memory.videoDate.toISOString().slice(0, 16) : '');
+                    setEditVideoDate(memory.videoDate ? new Date(memory.videoDate).toISOString().slice(0, 16) : '');
                     setEditVideoLocation(memory.videoLocation || '');
                     setEditVideoPeople(memory.videoPeople?.join(', ') || '');
                   }
@@ -697,6 +768,16 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                     setEditVoiceTranscript(memory.transcript || '');
                     setEditVoiceLanguage(memory.voiceLanguage || '');
                     setEditEnglishTranslation(memory.englishTranslation || '');
+                  }
+                  
+                  // Initialize document metadata if it's a document
+                  if (memory.type === 'document') {
+                    console.log('📄 Opening edit dialog for document:', {
+                      documentFileName: memory.documentFileName,
+                      documentType: memory.documentType,
+                      documentScannedText: memory.documentScannedText?.substring(0, 100)
+                    });
+                    setEditDocumentScannedText(memory.documentScannedText || '');
                   }
                   
                   setShowEditDialog(true);
@@ -793,6 +874,18 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                     src={memory.videoUrl}
                     className="w-full h-auto object-cover max-h-[200px]"
                     onEnded={() => setPlayingVideoId(null)}
+                    onError={(e) => {
+                      const target = e.target as HTMLVideoElement;
+                      const errorCode = target.error?.code;
+                      
+                      setPlayingVideoId(null);
+                      
+                      // Show user-friendly message only for format errors
+                      // Silent for other errors as they're usually transient
+                      if (errorCode === 4) {
+                        toast.error('This video format cannot be played in your browser');
+                      }
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       // Open full screen for everyone
@@ -868,9 +961,23 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                   </p>
                 )}
                 {memory.documentScannedText && (
-                  <p className="text-xs text-muted-foreground text-center line-clamp-2 mt-2">
-                    {memory.documentScannedText.slice(0, 50)}...
-                  </p>
+                  <div className="mt-2 px-2">
+                    {searchQuery ? (
+                      <>
+                        <p className="text-[10px] text-primary font-medium mb-1 flex items-center justify-center gap-1">
+                          <ScanText className="w-3 h-3" />
+                          Match found in text
+                        </p>
+                        <p className="text-xs text-muted-foreground text-center line-clamp-2 bg-yellow-50/50 px-2 py-1 rounded">
+                          {getSearchContext(memory.documentScannedText, searchQuery, 80)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center line-clamp-2">
+                        {memory.documentScannedText.slice(0, 50)}...
+                      </p>
+                    )}
+                  </div>
                 )}
                 <div className="absolute inset-0 bg-black/0 group-hover/doc:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover/doc:opacity-100">
                   <div className="bg-white/90 rounded-full p-2">
@@ -883,13 +990,13 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
 
           <div className="space-y-2">
             <div className="text-xs text-muted-foreground">
-              {formatDate(memory.displayDate)}
-              {memory.chronologicalDate.getTime() !== memory.displayDate.getTime() && (
+              {formatDate(new Date(memory.displayDate))}
+              {new Date(memory.chronologicalDate).getTime() !== new Date(memory.displayDate).getTime() && (
                 <span className="ml-2 text-primary">
                   {/* Show more specific text for photos and videos with EXIF dates */}
                   {(memory.type === 'photo' && memory.photoDate) || (memory.type === 'video' && memory.videoDate) 
-                    ? `• Taken ${formatDate(memory.chronologicalDate)}`
-                    : `• Story from ${memory.chronologicalDate.getFullYear()}`
+                    ? `• Taken ${formatDate(new Date(memory.chronologicalDate))}`
+                    : `• Story from ${new Date(memory.chronologicalDate).getFullYear()}`
                   }
                 </span>
               )}
@@ -905,6 +1012,16 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
               <div className="flex items-start gap-1 text-xs text-muted-foreground">
                 <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" />
                 <span className="break-words">{memory.videoLocation}</span>
+              </div>
+            )}
+            {/* Display document metadata */}
+            {(memory.type === 'document' && memory.documentScannedText) && (
+              <div className="flex items-start gap-1 text-xs text-primary/70">
+                <ScanText className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                <span className="break-words">
+                  {memory.documentScannedText.split(/\s+/).filter(w => w.length > 0).length} words extracted
+                  {memory.documentScanLanguage && ` • ${memory.documentScanLanguage}`}
+                </span>
               </div>
             )}
             {memory.tags.length > 0 && (
@@ -1093,16 +1210,25 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
   return (
     <div className="space-y-4 px-2 sm:px-4 max-w-4xl mx-auto overflow-x-hidden">
       {/* Search and Filters */}
-      <div className="space-y-3 sm:space-y-4">
-        <div className="flex items-center space-x-2">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search memories..."
+              placeholder="Search memories, scanned text, transcripts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 text-sm"
+              className="pl-10 pr-10 text-sm"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <Button variant="outline" size="icon" className="flex-shrink-0">
             <Filter className="w-4 h-4" />
@@ -1110,12 +1236,12 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center space-x-2 overflow-hidden pb-1 py-2">
+          <div className="flex items-center gap-2">
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-32 sm:w-40 h-10 text-sm flex-shrink-0">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent side="bottom" align="start" position="popper">
                 {CATEGORIES.map(category => (
                   <SelectItem key={category} value={category}>
                     <div className="flex items-center space-x-2">
@@ -1131,7 +1257,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
               <SelectTrigger className="w-32 sm:w-40 h-10 text-sm flex-shrink-0">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent side="bottom" align="start" position="popper">
                 {SORT_OPTIONS.map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -1141,7 +1267,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
             </Select>
           </div>
 
-          <div className="flex items-center space-x-1 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="sm"
@@ -1165,6 +1291,12 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
         <span className="break-words">
           {filteredMemories.length} {filteredMemories.length === 1 ? 'memory' : 'memories'}
           {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+          {searchQuery && (
+            <span className="ml-2 text-primary">
+              <ScanText className="w-3 h-3 inline mr-1" />
+              Searching in all text including scanned documents
+            </span>
+          )}
           {viewMode === 'calendar' && ` • ${availableYears.length} ${availableYears.length === 1 ? 'year' : 'years'}`}
         </span>
         <span className="whitespace-nowrap">{memories.length} total</span>
@@ -1259,7 +1391,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                             <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
                               <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                               <div className="text-left min-w-0 flex-1">
-                                <h3 className="text-xs sm:text-sm font-medium truncate">{formatDayDisplay(date)}</h3>
+                                <h3 className="text-xs sm:text-sm font-medium truncate">{formatDayDisplay(new Date(date))}</h3>
                                 <p className="text-[10px] sm:text-xs text-muted-foreground">
                                   {dayMemories.length} {dayMemories.length === 1 ? 'memory' : 'memories'}
                                 </p>
@@ -1306,7 +1438,7 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedDayMemories.length > 0 && formatDayDisplay(selectedDayMemories[0].chronologicalDate)}
+              {selectedDayMemories.length > 0 && formatDayDisplay(new Date(selectedDayMemories[0].chronologicalDate))}
             </DialogTitle>
             <DialogDescription>
               {selectedDayMemories.length} {selectedDayMemories.length === 1 ? 'memory' : 'memories'} from this day
@@ -1858,15 +1990,116 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                   </h4>
                 </div>
                 
-                {/* Document File with Download */}
+                {/* Document Preview */}
                 {editingMemory.documentUrl && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      <Download className="w-4 h-4" />
-                      Document File
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Document Preview</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = editingMemory.documentUrl!;
+                          link.download = editingMemory.documentFileName || 'document';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          toast('Document downloaded');
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
+                      </Button>
+                    </div>
+                    
+                    {/* Clickable preview to open full screen */}
+                    <div 
+                      className="relative rounded-lg overflow-hidden border border-border bg-gray-100 cursor-pointer group"
+                      onClick={() => {
+                        setFullScreenDocument({
+                          url: editingMemory.documentUrl!,
+                          type: editingMemory.documentType || 'unknown',
+                          fileName: editingMemory.documentFileName || 'Document',
+                          scannedText: editingMemory.documentScannedText
+                        });
+                        setFullScreenMediaType('document');
+                        setShowFullScreenMedia(true);
+                      }}
+                    >
+                      {/* Image preview for image documents */}
+                      {(editingMemory.documentType === 'jpg' || editingMemory.documentType === 'jpeg' || editingMemory.documentType === 'png') && (
+                        <>
+                          <img 
+                            src={editingMemory.documentUrl} 
+                            alt="Document preview"
+                            className="w-full h-auto max-h-64 object-contain"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
+                              <ExternalLink className="w-5 h-5 text-black" />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* PDF preview */}
+                      {editingMemory.documentType === 'pdf' && (
+                        <div className="bg-gray-50">
+                          <iframe 
+                            src={editingMemory.documentUrl}
+                            className="w-full h-64 pointer-events-none"
+                            title="Document preview"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
+                              <ExternalLink className="w-5 h-5 text-black" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Generic document icon for other types */}
+                      {!['pdf', 'jpg', 'jpeg', 'png'].includes(editingMemory.documentType || '') && (
+                        <div className="aspect-square bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 flex flex-col items-center justify-center p-8">
+                          <div className="text-6xl mb-4">
+                            {['doc', 'docx'].includes(editingMemory.documentType || '') && '📝'}
+                            {['xls', 'xlsx'].includes(editingMemory.documentType || '') && '📊'}
+                            {['ppt', 'pptx'].includes(editingMemory.documentType || '') && '📽️'}
+                            {!['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(editingMemory.documentType || '') && '📎'}
+                          </div>
+                          {editingMemory.documentFileName && (
+                            <p className="text-sm text-center text-amber-800 font-medium mb-2">
+                              {editingMemory.documentFileName}
+                            </p>
+                          )}
+                          {editingMemory.documentType && (
+                            <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-300">
+                              {editingMemory.documentType.toUpperCase()}
+                            </Badge>
+                          )}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
+                              <ExternalLink className="w-5 h-5 text-black" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Click to view in full screen
+                    </p>
+                  </div>
+                )}
+                
+                {/* Document File Info with Details */}
+                {editingMemory.documentUrl && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Document Details</Label>
                     <div className="border rounded-lg p-3 bg-muted/30">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex-shrink-0 text-2xl">
                             {editingMemory.documentType === 'pdf' && '📄'}
@@ -1900,48 +2133,117 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                             </div>
                           </div>
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-shrink-0"
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = editingMemory.documentUrl!;
-                            link.download = editingMemory.documentFileName || 'document';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            toast('Document downloaded');
-                          }}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
                       </div>
                     </div>
                   </div>
                 )}
                 
                 {/* Scanned Text / OCR Transcription */}
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <ScanText className="w-4 h-4" />
-                  Scanned Text / OCR Transcription
-                  <Badge variant="secondary" className="text-xs ml-auto">
-                    Optional
-                  </Badge>
-                </Label>
-                <Textarea
-                  value={editDocumentScannedText}
-                  onChange={(e) => setEditDocumentScannedText(e.target.value)}
-                  placeholder="View or edit the scanned text from this document..."
-                  className="resize-none min-h-[150px] font-mono text-xs"
-                />
-                {editDocumentScannedText && (
-                  <p className="text-xs text-muted-foreground">
-                    {editDocumentScannedText.split(/\s+/).filter(w => w.length > 0).length} words
-                  </p>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <ScanText className="w-4 h-4" />
+                    Scanned Text / OCR Transcription
+                    <Badge variant="secondary" className="text-xs ml-auto">
+                      Optional
+                    </Badge>
+                  </Label>
+                  
+                  {/* Extract/Scan Text Button - Works for ALL document types */}
+                  {editingMemory.documentUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          const fileName = (editingMemory.documentFileName || '').toLowerCase();
+                          const documentType = editingMemory.documentType || '';
+                          
+                          console.log('📄 Starting document text extraction from edit dialog:', {
+                            memoryId: editingMemory.id,
+                            documentUrl: editingMemory.documentUrl?.substring(0, 100) + '...',
+                            documentType: documentType,
+                            fileName: fileName
+                          });
+                          
+                          toast.loading('Extracting text from document...', { id: 'extract-doc-text' });
+                          
+                          // Check document type and use appropriate method
+                          const imageFormats = ['.png', '.jpg', '.jpeg', '.gif', '.webp', 'png', 'jpg', 'jpeg', 'gif', 'webp'];
+                          const isImageFormat = imageFormats.some(format => 
+                            fileName.endsWith(format) || documentType === format.replace('.', '')
+                          );
+                          
+                          if (isImageFormat || documentType === 'pdf') {
+                            // Use AI vision for images and PDFs
+                            console.log('🤖 Using AI Vision API for text extraction...');
+                            const { extractDocumentText } = await import('../utils/aiService');
+                            const result = await extractDocumentText(editingMemory.documentUrl!);
+                            
+                            console.log('✅ Document text extracted:', {
+                              textLength: result.text.length,
+                              wordCount: result.text.split(' ').length,
+                              language: result.language
+                            });
+                            
+                            setEditDocumentScannedText(result.text);
+                            toast.success('Text extracted successfully!', { id: 'extract-doc-text' });
+                          } else {
+                            // For Office documents (Word, Excel, PowerPoint), use native extraction
+                            console.log('📝 Using native extraction for Office document...');
+                            
+                            // Fetch the document as a blob
+                            const response = await fetch(editingMemory.documentUrl!);
+                            const blob = await response.blob();
+                            const file = new File([blob], fileName, { type: blob.type });
+                            
+                            // Use the document scanner
+                            const { scanDocument } = await import('../utils/documentScanner');
+                            const result = await scanDocument(file, true);
+                            
+                            console.log('✅ Document text extracted:', {
+                              textLength: result.text.length,
+                              wordCount: result.wordCount,
+                              language: result.language
+                            });
+                            
+                            setEditDocumentScannedText(result.text);
+                            toast.success(`Text extracted! Found ${result.wordCount} words`, { id: 'extract-doc-text' });
+                          }
+                        } catch (error) {
+                          const errorMessage = error instanceof Error ? error.message : 'Failed to extract text';
+                          
+                          if (errorMessage === 'AI_NOT_CONFIGURED') {
+                            toast.error('AI features not configured. Please set up OpenAI API key.', { id: 'extract-doc-text' });
+                          } else if (errorMessage === 'OPENAI_API_KEY_INVALID') {
+                            toast.error('Invalid OpenAI API key. Please update your OPENAI_API_KEY in Supabase settings.', { id: 'extract-doc-text' });
+                          } else if (errorMessage.includes('not supported for AI text extraction')) {
+                            toast.info('This file type is not supported for text extraction', { id: 'extract-doc-text' });
+                          } else {
+                            console.error('Document extraction error:', errorMessage);
+                            toast.error('Failed to extract text from document', { id: 'extract-doc-text' });
+                          }
+                        }
+                      }}
+                    >
+                      <ScanText className="w-4 h-4 mr-2" />
+                      {editDocumentScannedText ? 'Re-scan Document' : 'Scan / Extract Text'}
+                    </Button>
+                  )}
+                  
+                  <Textarea
+                    value={editDocumentScannedText}
+                    onChange={(e) => setEditDocumentScannedText(e.target.value)}
+                    placeholder="View or edit the scanned text from this document..."
+                    className="resize-none min-h-[150px] font-mono text-xs"
+                  />
+                  {editDocumentScannedText && (
+                    <p className="text-xs text-muted-foreground">
+                      {editDocumentScannedText.split(/\s+/).filter(w => w.length > 0).length} words
+                    </p>
+                  )}
+                </div>
               </>
             )}
             
@@ -2064,6 +2366,17 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
                 className="max-w-full max-h-full object-contain"
                 controls
                 autoPlay
+                onError={(e) => {
+                  const target = e.target as HTMLVideoElement;
+                  const errorCode = target.error?.code;
+                  
+                  // Show specific error message based on error code
+                  if (errorCode === 4) {
+                    toast.error('This video format is not supported');
+                  } else {
+                    toast.error('Failed to load video');
+                  }
+                }}
               />
             ) : fullScreenMediaType === 'text' ? (
               <ScrollArea className="w-full h-full">

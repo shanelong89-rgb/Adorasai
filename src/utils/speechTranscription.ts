@@ -33,6 +33,8 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'ru-RU', name: 'Russian' },
   { code: 'zh-CN', name: 'Chinese (Simplified)' },
   { code: 'zh-TW', name: 'Chinese (Traditional)' },
+  { code: 'zh-HK', name: 'Chinese (Hong Kong / Cantonese)' },
+  { code: 'yue-Hant-HK', name: 'Cantonese (Hong Kong)' },
   { code: 'ja-JP', name: 'Japanese' },
   { code: 'ko-KR', name: 'Korean' },
   { code: 'ar-SA', name: 'Arabic' },

@@ -1,4 +1,6 @@
 import Tesseract from 'tesseract.js';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 
 export interface ScanResult {
   text: string;
@@ -45,13 +47,36 @@ export async function scanDocument(file: File, fullScan: boolean = false): Promi
       return await extractPDFText(file);
     }
 
-    // For Office files (DOCX, XLSX, PPTX) - these require server-side processing
-    // For now, we'll indicate they need extraction
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-    if (['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'].includes(fileExt)) {
+    // For Word documents (DOCX)
+    if (file.name.toLowerCase().endsWith('.docx')) {
+      return await extractDOCXText(file);
+    }
+
+    // For legacy Word documents (DOC)
+    if (file.name.toLowerCase().endsWith('.doc')) {
       return {
-        text: `Document uploaded: ${file.name}\n\nThis ${fileExt.toUpperCase()} file has been stored. Text extraction for Office documents requires server-side processing.\n\nYou can add notes about this document in the Media Library.`,
-        confidence: 100,
+        text: `Word document uploaded: ${file.name}\n\nThis is a legacy .DOC format file. For best results, please convert to .DOCX format or use the "Extract Text with AI" feature for text extraction.\n\nThe document has been stored and you can add notes about it in the Media Library.`,
+        confidence: 50,
+        language: 'English',
+        wordCount: 0
+      };
+    }
+
+    // For Excel files (XLSX, XLS)
+    if (['xlsx', 'xls'].includes(file.name.split('.').pop()?.toLowerCase() || '')) {
+      return await extractExcelText(file);
+    }
+
+    // For PowerPoint files (PPTX)
+    if (file.name.toLowerCase().endsWith('.pptx')) {
+      return await extractPPTXText(file);
+    }
+
+    // For legacy PowerPoint files (PPT)
+    if (file.name.toLowerCase().endsWith('.ppt')) {
+      return {
+        text: `PowerPoint presentation uploaded: ${file.name}\n\nThis is a legacy .PPT format file. For best results, please convert to .PPTX format or use the "Extract Text with AI" feature for text extraction.\n\nThe presentation has been stored and you can add notes about it in the Media Library.`,
+        confidence: 50,
         language: 'English',
         wordCount: 0
       };
@@ -168,6 +193,177 @@ async function extractPDFText(file: File): Promise<ScanResult> {
     console.error('Error extracting PDF text:', error);
     return {
       text: `PDF document uploaded: ${file.name}\n\nThe document has been stored. You can add notes about it in the Media Library.`,
+      confidence: 50,
+      language: 'English',
+      wordCount: 0
+    };
+  }
+}
+
+/**
+ * Extract text from DOCX files using Mammoth
+ */
+async function extractDOCXText(file: File): Promise<ScanResult> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    
+    const text = result.value.trim();
+    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+    
+    if (text && text.length > 0) {
+      return {
+        text: text,
+        confidence: 95,
+        language: detectLanguage(text),
+        wordCount: wordCount
+      };
+    }
+    
+    return {
+      text: `Word document uploaded: ${file.name}\n\nNo readable text found in this document. You can add notes about it in the Media Library.`,
+      confidence: 50,
+      language: 'English',
+      wordCount: 0
+    };
+  } catch (error) {
+    console.error('Error extracting DOCX text:', error);
+    return {
+      text: `Word document uploaded: ${file.name}\n\nUnable to extract text from this document. You can use "Extract Text with AI" or add notes manually in the Media Library.`,
+      confidence: 50,
+      language: 'English',
+      wordCount: 0
+    };
+  }
+}
+
+/**
+ * Extract text from Excel files using SheetJS
+ */
+async function extractExcelText(file: File): Promise<ScanResult> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    
+    const textParts: string[] = [];
+    
+    // Process each sheet
+    workbook.SheetNames.forEach((sheetName, index) => {
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Add sheet name as header (except for first sheet if it's named "Sheet1")
+      if (workbook.SheetNames.length > 1 || sheetName !== 'Sheet1') {
+        textParts.push(`\n=== ${sheetName} ===\n`);
+      }
+      
+      // Convert sheet to CSV format (preserves cell structure better than JSON)
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+      
+      if (csv.trim()) {
+        textParts.push(csv);
+      }
+    });
+    
+    const text = textParts.join('\n').trim();
+    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+    
+    if (text && text.length > 0) {
+      return {
+        text: text,
+        confidence: 90,
+        language: detectLanguage(text),
+        wordCount: wordCount
+      };
+    }
+    
+    return {
+      text: `Excel spreadsheet uploaded: ${file.name}\n\nNo data found in this spreadsheet. You can add notes about it in the Media Library.`,
+      confidence: 50,
+      language: 'English',
+      wordCount: 0
+    };
+  } catch (error) {
+    console.error('Error extracting Excel text:', error);
+    return {
+      text: `Excel spreadsheet uploaded: ${file.name}\n\nUnable to extract data from this spreadsheet. You can use "Extract Text with AI" or add notes manually in the Media Library.`,
+      confidence: 50,
+      language: 'English',
+      wordCount: 0
+    };
+  }
+}
+
+/**
+ * Extract text from PPTX files by parsing the XML structure
+ */
+async function extractPPTXText(file: File): Promise<ScanResult> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    
+    const textParts: string[] = [];
+    let slideNumber = 0;
+    
+    // Find all slide files (slide1.xml, slide2.xml, etc.)
+    const slideFiles = Object.keys(zip.files)
+      .filter(name => name.match(/ppt\/slides\/slide\d+\.xml$/))
+      .sort((a, b) => {
+        const numA = parseInt(a.match(/slide(\d+)\.xml$/)?.[1] || '0');
+        const numB = parseInt(b.match(/slide(\d+)\.xml$/)?.[1] || '0');
+        return numA - numB;
+      });
+    
+    // Extract text from each slide
+    for (const slideFile of slideFiles) {
+      slideNumber++;
+      const slideXml = await zip.file(slideFile)?.async('text');
+      
+      if (slideXml) {
+        // Extract text from <a:t> tags (text elements in PowerPoint XML)
+        const textMatches = slideXml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g);
+        
+        if (textMatches && textMatches.length > 0) {
+          const slideTexts = textMatches.map(match => {
+            const text = match.replace(/<a:t[^>]*>/, '').replace(/<\/a:t>/, '');
+            // Decode XML entities
+            return text
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&amp;/g, '&')
+              .replace(/&quot;/g, '"')
+              .replace(/&apos;/g, "'");
+          });
+          
+          if (slideTexts.some(t => t.trim())) {
+            textParts.push(`\n=== Slide ${slideNumber} ===\n${slideTexts.join(' ')}`);
+          }
+        }
+      }
+    }
+    
+    const text = textParts.join('\n').trim();
+    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+    
+    if (text && text.length > 0) {
+      return {
+        text: text,
+        confidence: 85,
+        language: detectLanguage(text),
+        wordCount: wordCount
+      };
+    }
+    
+    return {
+      text: `PowerPoint presentation uploaded: ${file.name}\n\nNo text content found in this presentation. Slides may contain only images. You can add notes about it in the Media Library.`,
+      confidence: 50,
+      language: 'English',
+      wordCount: 0
+    };
+  } catch (error) {
+    console.error('Error extracting PPTX text:', error);
+    return {
+      text: `PowerPoint presentation uploaded: ${file.name}\n\nUnable to extract text from this presentation. You can use "Extract Text with AI" or add notes manually in the Media Library.`,
       confidence: 50,
       language: 'English',
       wordCount: 0

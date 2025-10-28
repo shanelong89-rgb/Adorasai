@@ -2,21 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui">
+  
+  <!-- iOS Web App Configuration (MUST be before manifest) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Adoras">
+  <meta name="mobile-web-app-capable" content="yes">
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
   
   <!-- Theme Colors -->
   <meta name="theme-color" content="#36453B">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Adoras">
+  <meta name="msapplication-TileColor" content="#36453B">
+  <meta name="msapplication-navbutton-color" content="#36453B">
   
   <!-- App Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="figma:asset/ff464e8797ec2866e347b1268d3b9dc2969816ff.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="figma:asset/3fe1935c438bb2370304ba54a6324fc61eac466e.png">
-  <link rel="apple-touch-icon" href="figma:asset/ff464e8797ec2866e347b1268d3b9dc2969816ff.png">
+  <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192">
+  <link rel="icon" type="image/png" href="/icon-512.png" sizes="512x512">
+  
+  <!-- iOS Touch Icons (Various Sizes for Different Devices) -->
+  <!-- iOS doesn't support SVG for touch icons - must be PNG -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-152.png" sizes="152x152">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-120.png" sizes="120x120">
+  
+  <!-- Favicon for browser tab -->
+  <link rel="shortcut icon" href="/icon-192.png">
+  <link rel="icon" type="image/png" href="/icon-192.png">
   
   <!-- App Metadata -->
   <meta name="description" content="Reconnect with family through shared memories, stories, photos, and voice notes">

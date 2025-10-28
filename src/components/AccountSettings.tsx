@@ -36,6 +36,7 @@ export function AccountSettings({ isOpen, onClose, userProfile, onUpdateProfile 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [showCropper, setShowCropper] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>('');
+  const [birthdayPopoverOpen, setBirthdayPopoverOpen] = useState(false);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -215,7 +216,7 @@ export function AccountSettings({ isOpen, onClose, userProfile, onUpdateProfile 
               </div>
               <div className="space-y-2">
                 <Label>Birthday</Label>
-                <Popover>
+                <Popover open={birthdayPopoverOpen} onOpenChange={setBirthdayPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -229,7 +230,12 @@ export function AccountSettings({ isOpen, onClose, userProfile, onUpdateProfile 
                     <Calendar
                       mode="single"
                       selected={birthday}
-                      onSelect={setBirthday}
+                      onSelect={(date) => {
+                        setBirthday(date);
+                        if (date) {
+                          setBirthdayPopoverOpen(false);
+                        }
+                      }}
                       initialFocus
                       captionLayout="dropdown-buttons"
                       fromYear={1920}
@@ -276,28 +282,6 @@ export function AccountSettings({ isOpen, onClose, userProfile, onUpdateProfile 
               <Save className="w-4 h-4 mr-2" />
               Save Language Preference
             </Button>
-          </div>
-
-          <Separator />
-
-          {/* QR Code */}
-          <div className="space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <QrCode className="w-4 h-4" />
-              Your QR Code
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Share your QR code for others to connect with you
-            </p>
-            <div className="p-6 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 flex flex-col items-center space-y-4">
-              <div className="w-48 h-48 bg-white p-4 rounded-lg shadow-md flex items-center justify-center">
-                <div className="w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0wIDBoNDB2NDBIMHptNDAgMGg0MHY0MEg0MHptODAgMGg0MHY0MEg4MHptMTIwIDBoNDB2NDBIMTIwem0wIDQwaC00MHY0MGg0MHptLTgwIDBoNDB2NDBINDB6bTQwIDBoNDB2NDBoNDB2NDBoLTQwdi00MHptNDAgMGg0MHY0MEg4MHptNDAgNDBoNDB2NDBIMTIwem0tNDAgMGg0MHY0MEg4MHptLTQwIDBoNDB2NDBINDB6bS00MCAwaDQwdjQwSDB6bTAgNDBoNDB2NDBIMHptODAgMGg0MHY0MEg4MHptNDAgMGg0MHY0MEgxMjB6bTAgNDBoNDB2NDBIMTIwem0tNDAgMGg0MHY0MEg4MHptLTQwIDBoNDB2NDBINDB6bS00MCAwaDQwdjQwSDB6bTAgNDBoNDB2NDBIMHptNDAgMGg0MHY0MEg0MHptNDAgMGg0MHY0MEg4MHptNDAgMGg0MHY0MEgxMjB6IiBmaWxsPSIjMDAwIi8+PC9zdmc+')]  bg-contain bg-no-repeat bg-center" />
-              </div>
-              <Button variant="outline" className="w-full max-w-xs">
-                <QrCode className="w-4 h-4 mr-2" />
-                Download QR Code
-              </Button>
-            </div>
           </div>
 
           <Separator />

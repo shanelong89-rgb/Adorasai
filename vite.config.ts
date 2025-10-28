@@ -8,6 +8,7 @@
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
+        'web-push@3.6.7': 'web-push',
         'vaul@1.1.2': 'vaul',
         'sonner@2.0.3': 'sonner',
         'recharts@2.15.2': 'recharts',
@@ -17,6 +18,7 @@
         'next-themes@0.4.6': 'next-themes',
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
+        'hono@4': 'hono',
         'figma:asset/ff464e8797ec2866e347b1268d3b9dc2969816ff.png': path.resolve(__dirname, './src/assets/ff464e8797ec2866e347b1268d3b9dc2969816ff.png'),
         'figma:asset/c0ceb92d68e5b47f201fa6ace32aa529988746ee.png': path.resolve(__dirname, './src/assets/c0ceb92d68e5b47f201fa6ace32aa529988746ee.png'),
         'figma:asset/765d34e9fbc721b15c88ad53d2e5f39e8955bf52.png': path.resolve(__dirname, './src/assets/765d34e9fbc721b15c88ad53d2e5f39e8955bf52.png'),
@@ -26,6 +28,7 @@
         'date-fns@4.1.0': 'date-fns',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',
+        '@supabase/supabase-js@2': '@supabase/supabase-js',
         '@radix-ui/react-tooltip@1.1.8': '@radix-ui/react-tooltip',
         '@radix-ui/react-toggle@1.1.2': '@radix-ui/react-toggle',
         '@radix-ui/react-toggle-group@1.1.2': '@radix-ui/react-toggle-group',
@@ -52,6 +55,8 @@
         '@radix-ui/react-aspect-ratio@1.1.2': '@radix-ui/react-aspect-ratio',
         '@radix-ui/react-alert-dialog@1.1.6': '@radix-ui/react-alert-dialog',
         '@radix-ui/react-accordion@1.2.3': '@radix-ui/react-accordion',
+        '@jsr/supabase__supabase-js@2.49.8': '@jsr/supabase__supabase-js',
+        '@jsr/supabase__supabase-js@2': '@jsr/supabase__supabase-js',
         '@': path.resolve(__dirname, './src'),
       },
     },

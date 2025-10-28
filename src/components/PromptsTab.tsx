@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Memory, UserType } from '../App';
+import { Memory, UserType, UserProfile } from '../App';
 import { Send, Sparkles, Heart, Camera, Clock, BookOpen } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 
 interface PromptsTabProps {
   userType: UserType;
-  partnerName: string;
+  partnerName: string | undefined; // Allow undefined for "not connected" state
+  partnerProfile?: UserProfile;
   onAddMemory: (memory: Omit<Memory, 'id' | 'timestamp'>) => void;
   memories: Memory[];
   onNavigateToChat?: (prompt: string) => void;
@@ -248,14 +249,52 @@ const PARENT_SUGGESTED_TOPICS = [
   "My proudest achievement"
 ];
 
-export function PromptsTab({ userType, partnerName, onAddMemory, memories, onNavigateToChat }: PromptsTabProps) {
+export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory, memories, onNavigateToChat }: PromptsTabProps) {
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
   const [displayedPrompts, setDisplayedPrompts] = useState<typeof CHILD_PROMPTS>([]);
   const [todaysPromptIndex, setTodaysPromptIndex] = useState(0);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const isParent = userType === 'parent';
   const allPrompts = isParent ? PARENT_STORY_TOPICS : CHILD_PROMPTS;
   const suggestedPrompts = isParent ? PARENT_SUGGESTED_TOPICS : CHILD_SUGGESTED_PROMPTS;
+
+  // Calculate day of year for deterministic daily prompt selection
+  const getDayOfYear = (date: Date): number => {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
+  };
+
+  // Update today's prompt index based on current date
+  useEffect(() => {
+    const dayOfYear = getDayOfYear(currentDate);
+    const index = dayOfYear % allPrompts.length;
+    setTodaysPromptIndex(index);
+  }, [currentDate, allPrompts.length]);
+
+  // Check for date change every minute
+  useEffect(() => {
+    const checkDateChange = () => {
+      const now = new Date();
+      const currentDateString = now.toDateString();
+      const storedDateString = currentDate.toDateString();
+      
+      if (currentDateString !== storedDateString) {
+        setCurrentDate(now);
+        toast.success('✨ New daily prompt available!');
+      }
+    };
+
+    // Check immediately
+    checkDateChange();
+
+    // Check every minute
+    const interval = setInterval(checkDateChange, 60000);
+    
+    return () => clearInterval(interval);
+  }, [currentDate]);
 
   // Initialize displayed prompts on mount
   useEffect(() => {
@@ -271,6 +310,12 @@ export function PromptsTab({ userType, partnerName, onAddMemory, memories, onNav
   };
 
   const handleSendPrompt = (promptText: string) => {
+    // Safety check: Don't send if no partner connected
+    if (!partnerName) {
+      toast.error('Please connect with a partner first');
+      return;
+    }
+    
     // For children (Legacy Keepers), send the prompt as a message to the storyteller
     if (!isParent) {
       onAddMemory({
@@ -296,11 +341,39 @@ export function PromptsTab({ userType, partnerName, onAddMemory, memories, onNav
 
   const todaysPrompt = displayedPrompts[todaysPromptIndex] || allPrompts[0];
 
+  // Show empty state if no partner is connected
+  if (!partnerName) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center space-y-6">
+        <div className="p-4 bg-primary/10 rounded-full">
+          <Send className="w-12 h-12 sm:w-16 sm:h-16 text-primary" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl sm:text-2xl font-medium" style={{ fontFamily: 'Archivo', letterSpacing: '-0.05em' }}>
+            {userType === 'keeper' ? 'No Storyteller Connected' : 'No Connection Yet'}
+          </h3>
+          <p className="text-muted-foreground max-w-md text-sm sm:text-base">
+            {userType === 'keeper' 
+              ? 'Create an invitation to connect with a storyteller and start collecting memories together.'
+              : 'Accept an invitation code from a legacy keeper to start sharing your stories.'}
+          </p>
+        </div>
+        <Button
+          onClick={() => toast.info('Go to Menu → Invite to create or accept a connection')}
+          className="gap-2"
+        >
+          <Send className="w-4 h-4" />
+          Get Started
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Today's Featured Prompt */}
       <Card className="border-0 gradient-accent shadow-lg animate-scale-in border border-primary/10">
-        <CardHeader className="py-3 px-4 sm:py-[14px] sm:px-[24px]">
+        <CardHeader className="py-3 px-4 sm:py-[14px] sm:px-[24px] pb-2 sm:pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="p-2 sm:p-3 bg-primary/15 rounded-xl">
@@ -316,7 +389,7 @@ export function PromptsTab({ userType, partnerName, onAddMemory, memories, onNav
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+        <CardContent className="space-y-4 sm:space-y-6 pt-3 px-4 pb-4 sm:pt-4 sm:px-6 sm:pb-6">
           <div className="flex items-start space-x-3 sm:space-x-4">
             <div className="text-2xl sm:text-3xl p-2 sm:p-3 bg-white/60 rounded-xl backdrop-blur-sm border border-white/20 flex-shrink-0">
               {todaysPrompt.icon}
@@ -433,27 +506,6 @@ export function PromptsTab({ userType, partnerName, onAddMemory, memories, onNav
           ))}
         </div>
       </div>
-
-      {/* Recent Activity */}
-      {memories.filter(m => m.category === 'Prompt').length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Recent Prompts</h3>
-          <div className="space-y-2">
-            {memories
-              .filter(m => m.category === 'Prompt')
-              .slice(-3)
-              .map((memory) => (
-                <div key={memory.id} className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                  <Heart className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">{memory.content}</span>
-                  <Badge variant="secondary" className="text-xs ml-auto">
-                    {memory.timestamp.toLocaleDateString()}
-                  </Badge>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

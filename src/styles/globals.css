@@ -166,6 +166,44 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* iOS PWA Fullscreen Support */
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    
+    /* Prevent pull-to-refresh and overscroll on iOS PWA */
+    overscroll-behavior-y: contain;
+  }
+  
+  /* Support for iOS safe areas (notch, home indicator) */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Ensure root element fills viewport in standalone mode */
+  #root {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* iOS standalone mode specific styles */
+  @media all and (display-mode: standalone) {
+    body {
+      /* Prevent any browser-like behaviors */
+      -webkit-touch-callout: none;
+    }
+    
+    html {
+      /* Ensure proper height calculation on iOS */
+      height: -webkit-fill-available;
+    }
+  }
 }
 
 /**

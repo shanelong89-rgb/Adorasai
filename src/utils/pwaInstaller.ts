@@ -47,23 +47,40 @@ class PWAInstaller {
   // Register the service worker
   async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
     if (!('serviceWorker' in navigator)) {
+      console.log('⚠️ Service workers not supported in this browser');
       return null;
     }
 
     try {
-      // First check if the service worker file exists
-      const swCheck = await fetch('/sw.js', { method: 'HEAD' }).catch(() => null);
-      if (!swCheck || !swCheck.ok) {
-        // Silently skip - expected in Figma Make preview environment
-        // Service worker will work automatically when deployed to production
+      console.log('📝 [SW] Starting service worker registration...');
+      
+      // Check if service worker file exists first
+      // This will fail in Figma Make preview (expected) but work in production
+      try {
+        const swCheck = await fetch('/sw.js', { method: 'HEAD' });
+        if (!swCheck.ok) {
+          console.log('ℹ️ [SW] Service worker file not accessible (404)');
+          console.log('ℹ️ [SW] This is expected in Figma Make preview environment');
+          console.log('ℹ️ [SW] Service workers and push notifications will work when deployed to production');
+          console.log('ℹ️ [SW] For now, in-app notifications will be used instead');
+          return null;
+        }
+      } catch (fetchError) {
+        console.log('ℹ️ [SW] Cannot check service worker file availability');
+        console.log('ℹ️ [SW] This is expected in preview - will work in production');
         return null;
       }
       
+      // Try to register the service worker
       const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
       });
 
-      console.log('✅ Service worker registered:', registration.scope);
+      console.log('✅ [SW] Service worker registered successfully!');
+      console.log('📝 [SW] Scope:', registration.scope);
+      console.log('📝 [SW] Installing:', registration.installing);
+      console.log('📝 [SW] Waiting:', registration.waiting);
+      console.log('📝 [SW] Active:', registration.active);
 
       // Check for updates
       registration.addEventListener('updatefound', () => {
@@ -85,9 +102,41 @@ class PWAInstaller {
         registration.update();
       }, 60 * 60 * 1000);
 
+      // Wait for the service worker to become active
+      if (!registration.active && (registration.installing || registration.waiting)) {
+        console.log('📝 [SW] Waiting for service worker to become active...');
+        await new Promise<void>((resolve) => {
+          const worker = registration.installing || registration.waiting;
+          if (worker) {
+            worker.addEventListener('statechange', () => {
+              console.log('📝 [SW] State changed to:', worker.state);
+              if (worker.state === 'activated') {
+                console.log('✅ [SW] Service worker activated!');
+                resolve();
+              }
+            });
+          } else {
+            resolve();
+          }
+        });
+      } else if (registration.active) {
+        console.log('✅ [SW] Service worker already active!');
+      }
+
       return registration;
     } catch (error) {
-      console.error('❌ Service worker registration failed:', error);
+      // Check if it's a 404 error (expected in preview)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('404') || errorMessage.includes('bad HTTP response')) {
+        console.log('ℹ️ [SW] Service worker not available in preview environment');
+        console.log('ℹ️ [SW] This is expected - push notifications will work in production');
+      } else {
+        console.error('❌ [SW] Service worker registration failed:', error);
+        console.error('❌ [SW] Error details:', {
+          name: error instanceof Error ? error.name : 'Unknown',
+          message: errorMessage,
+        });
+      }
       return null;
     }
   }

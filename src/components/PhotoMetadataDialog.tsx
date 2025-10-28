@@ -51,7 +51,7 @@ export function PhotoMetadataDialog({ open, metadata, onConfirm, onCancel }: Pho
       setPeopleInput(metadata.detectedPeople?.join(', ') || '');
       setTagsInput(metadata.suggestedTags.join(', '));
       setLocationInput(metadata.photoLocation || '');
-      setDateInput(metadata.photoDate ? metadata.photoDate.toISOString().slice(0, 16) : '');
+      setDateInput(metadata.photoDate ? new Date(metadata.photoDate).toISOString().slice(0, 16) : '');
     }
   }, [metadata]);
 

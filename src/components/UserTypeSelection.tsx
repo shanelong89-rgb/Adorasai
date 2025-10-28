@@ -25,7 +25,7 @@ export function UserTypeSelection({ onSelect }: UserTypeSelectionProps) {
       {/* Timeline at the top */}
       <div className="absolute top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-[90vw] md:max-w-none md:w-auto">
         <div className="flex items-start justify-between md:gap-1">
-          {[3, 4, 5, 6, 7].map((num, index) => (
+          {[1, 2, 3, 4, 5].map((num, index) => (
             <React.Fragment key={num}>
               {/* Main numbered marker */}
               <div className="flex flex-col items-center">
