@@ -8,11 +8,15 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import * as kv from './kv_store.tsx';
 import { UserProfile, Keys } from './database.tsx';
 
+console.log('📝 Auth module loading...');
+
 // Create Supabase client
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
+
+console.log('✅ Auth module loaded successfully');
 
 /**
  * Create a new user account (signup)
@@ -369,6 +373,194 @@ export async function verifyToken(accessToken: string) {
     return {
       success: false,
       error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Change user password
+ */
+export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  try {
+    // Get user profile to get email
+    const userProfile = await kv.get<UserProfile>(Keys.user(userId));
+    
+    if (!userProfile || !userProfile.email) {
+      return {
+        success: false,
+        error: 'User profile not found or email missing',
+      };
+    }
+
+    // Verify current password by attempting sign in
+    const signInResult = await supabase.auth.signInWithPassword({
+      email: userProfile.email,
+      password: currentPassword,
+    });
+
+    if (signInResult.error) {
+      return {
+        success: false,
+        error: 'Current password is incorrect',
+      };
+    }
+
+    // Update password using admin API
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: `Password update failed: ${error.message}`,
+      };
+    }
+
+    console.log('✅ Password changed successfully for user:', userId);
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('❌ Error changing password:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Export all user data (GDPR compliance)
+ */
+export async function exportUserData(userId: string) {
+  try {
+    console.log('📦 Exporting data for user:', userId);
+
+    // Get user profile
+    const userProfile = await kv.get<UserProfile>(Keys.user(userId));
+    
+    if (!userProfile) {
+      return {
+        success: false,
+        error: 'User profile not found',
+      };
+    }
+
+    // Get user connections
+    const connections = await kv.get<string[]>(Keys.userConnections(userId)) || [];
+    
+    // Get all memories for this user
+    const allMemoryKeys = await kv.getByPrefix<any>(Keys.prefixes.memories);
+    const userMemories = allMemoryKeys.filter((mem: any) => 
+      mem.userId === userId || connections.some((connId: string) => mem.connectionId === connId)
+    );
+
+    // Compile all user data
+    const exportData = {
+      profile: userProfile,
+      connections: connections,
+      memories: userMemories,
+      exportDate: new Date().toISOString(),
+      dataPolicy: 'This data export contains all information associated with your Adoras account.',
+    };
+
+    console.log('✅ Data export complete. Total memories:', userMemories.length);
+    
+    return {
+      success: true,
+      data: exportData,
+    };
+  } catch (error) {
+    console.error('❌ Error exporting user data:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Delete user account and all associated data
+ */
+export async function deleteUserAccount(userId: string, password: string) {
+  try {
+    console.log('🗑️  Starting account deletion for user:', userId);
+
+    // Get user profile to verify email
+    const userProfile = await kv.get<UserProfile>(Keys.user(userId));
+    
+    if (!userProfile || !userProfile.email) {
+      return {
+        success: false,
+        error: 'User profile not found or email missing',
+      };
+    }
+
+    // Verify password before deletion
+    const signInResult = await supabase.auth.signInWithPassword({
+      email: userProfile.email,
+      password: password,
+    });
+
+    if (signInResult.error) {
+      return {
+        success: false,
+        error: 'Password verification failed. Account deletion cancelled.',
+      };
+    }
+
+    // Get user connections
+    const connections = await kv.get<string[]>(Keys.userConnections(userId)) || [];
+    
+    // Delete all memories associated with user
+    const allMemoryKeys = await kv.getByPrefix<any>(Keys.prefixes.memories);
+    const userMemories = allMemoryKeys.filter((mem: any) => 
+      mem.userId === userId || connections.some((connId: string) => mem.connectionId === connId)
+    );
+    
+    for (const memory of userMemories) {
+      await kv.del(Keys.memory(memory.id));
+    }
+    
+    console.log(`✅ Deleted ${userMemories.length} memories`);
+
+    // Delete all connections
+    for (const connectionId of connections) {
+      await kv.del(Keys.connection(connectionId));
+    }
+    
+    console.log(`✅ Deleted ${connections.length} connections`);
+
+    // Delete user connections list
+    await kv.del(Keys.userConnections(userId));
+
+    // Delete user profile
+    await kv.del(Keys.user(userId));
+    
+    console.log('✅ User profile deleted');
+
+    // Delete auth user
+    const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+    
+    if (authError) {
+      console.error('⚠️  Auth user deletion failed:', authError.message);
+      // Continue anyway since data is deleted
+    } else {
+      console.log('✅ Auth user deleted');
+    }
+
+    console.log('✅ Account deletion complete for user:', userId);
+    
+    return {
+      success: true,
+      message: 'Account and all associated data deleted successfully',
+    };
+  } catch (error) {
+    console.error('❌ Error deleting user account:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }

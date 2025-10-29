@@ -3,13 +3,14 @@ import React from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { UserType } from '../App';
-import { Crown, Users, ArrowRight } from 'lucide-react';
+import { Crown, Users, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface UserTypeSelectionProps {
   onSelect: (type: UserType) => void;
+  onBack?: () => void;
 }
 
-export function UserTypeSelection({ onSelect }: UserTypeSelectionProps) {
+export function UserTypeSelection({ onSelect, onBack }: UserTypeSelectionProps) {
   return (
     <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-background animate-fade-in relative">
       {/* Logo in top left corner */}
@@ -21,6 +22,21 @@ export function UserTypeSelection({ onSelect }: UserTypeSelectionProps) {
         />
 
       </div>
+
+      {/* Back Button - positioned under logo */}
+      {onBack && (
+        <div className="absolute top-32 sm:top-36 md:top-40 left-4 sm:left-8 md:left-12 z-10">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm" style={{ fontFamily: 'Inter', letterSpacing: '-0.02em' }}>
+              Back
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Timeline at the top */}
       <div className="absolute top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-[90vw] md:max-w-none md:w-auto">

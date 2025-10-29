@@ -123,6 +123,8 @@ interface ChatTabProps {
   onClearPrompt?: () => void;
   onScrollUp?: () => void; // Callback to notify parent when scrolling up in chat
   onScrollDown?: () => void; // Callback to notify parent when scrolling down in chat
+  shouldScrollToBottom?: boolean; // Trigger scroll to bottom
+  onScrollToBottomComplete?: () => void; // Callback after scroll completes
 }
 
 export function ChatTab({ 
@@ -136,7 +138,9 @@ export function ChatTab({
   activePrompt,
   onClearPrompt,
   onScrollUp,
-  onScrollDown
+  onScrollDown,
+  shouldScrollToBottom,
+  onScrollToBottomComplete
 }: ChatTabProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -159,8 +163,6 @@ export function ChatTab({
   const [documentStates, setDocumentStates] = useState<{[key: string]: {
     textShown: boolean;
   }}>({});
-  const [deletedMemoryIds, setDeletedMemoryIds] = useState<Set<string>>(new Set());
-  const [deletedMemories, setDeletedMemories] = useState<Memory[]>([]);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ type: 'photo' | 'video'; url: string; title: string } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -195,6 +197,14 @@ export function ChatTab({
       // Note: Scroll behavior is now handled in the scroll effects section below (lines 1103+)
     }
   }, [activePrompt]);
+
+  // Debug: Log connection and memories on load
+  useEffect(() => {
+    // Only log when there are memories - reduces console noise during loading
+    if (memories.length > 0) {
+      console.log(`💬 ChatTab loaded - ${memories.length} memories for ${partnerProfile?.name}`);
+    }
+  }, [memories.length, partnerProfile?.name]);
 
   // Debug: Log video memories
   useEffect(() => {
@@ -490,29 +500,8 @@ export function ChatTab({
   }, [onScrollUp, onScrollDown]);
   */
 
-  // Track deleted memories by comparing with previous memories list
-  const previousMemoriesRef = useRef<Memory[]>([]);
-  useEffect(() => {
-    const currentIds = new Set(memories.map(m => m.id));
-    
-    // Find memories that were in previous but not in current (i.e., deleted)
-    const newlyDeletedMemories = previousMemoriesRef.current
-      .filter(m => !currentIds.has(m.id));
-    
-    if (newlyDeletedMemories.length > 0) {
-      // Add to deleted memories list
-      setDeletedMemories(prev => [...prev, ...newlyDeletedMemories]);
-      
-      // Add IDs to deleted set
-      setDeletedMemoryIds(prev => {
-        const updated = new Set(prev);
-        newlyDeletedMemories.forEach(m => updated.add(m.id));
-        return updated;
-      });
-    }
-    
-    previousMemoriesRef.current = memories;
-  }, [memories]);
+  // Deleted memories are removed from the database and won't appear in the memories array
+  // No need to track them locally
 
   // Scroll detection for showing "Scroll to Top" button
   useEffect(() => {
@@ -604,6 +593,39 @@ export function ChatTab({
     
     return () => clearTimeout(timer);
   }, []); // Empty dependency array = only run once on mount
+
+  // Handle external scroll to bottom trigger (from notifications/tab switch)
+  useEffect(() => {
+    if (shouldScrollToBottom) {
+      const timer = setTimeout(() => {
+        // Find the ScrollArea viewport
+        const scrollViewports = document.querySelectorAll('[data-slot=\"scroll-area-viewport\"]');
+        let scrollViewport: Element | null = null;
+        
+        // Find the viewport that's in the ChatTab
+        scrollViewports.forEach(viewport => {
+          if (viewport.querySelector('[class*=\"space-y-4\"]') || viewport.textContent?.includes('Start the conversation')) {
+            scrollViewport = viewport;
+          }
+        });
+        
+        if (scrollViewport) {
+          // Scroll to bottom smoothly
+          scrollViewport.scrollTo({
+            top: scrollViewport.scrollHeight,
+            behavior: 'smooth'
+          });
+          
+          // Notify parent that scroll is complete
+          if (onScrollToBottomComplete) {
+            setTimeout(() => onScrollToBottomComplete(), 300);
+          }
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shouldScrollToBottom, onScrollToBottomComplete]);
 
   // Get all unique past prompts from memories
   const pastPrompts = React.useMemo(() => {
@@ -1748,18 +1770,8 @@ export function ChatTab({
     }));
   };
 
-  // Combine active and deleted memories for display
-  const allChatMemories = [...memories, ...deletedMemories];
-  
-  // Remove duplicates (in case a deleted memory is somehow still in memories)
-  const uniqueMemories = allChatMemories.reduce((acc, m) => {
-    if (!acc.find(existing => existing.id === m.id)) {
-      acc.push(m);
-    }
-    return acc;
-  }, [] as Memory[]);
-  
-  const chatMessages = uniqueMemories.filter(m => {
+  // Filter memories to show in chat
+  const chatMessages = memories.filter(m => {
     const isRelevantCategory = m.category === 'Chat' || m.category === 'Photos' || m.category === 'Voice' || m.category === 'Video' || m.category === 'Documents' || m.category === 'Prompt' || m.category === 'Prompts';
     // Filter out the initial prompt question messages (where content equals promptQuestion)
     // These are shown in the header instead of as chat bubbles
@@ -1830,32 +1842,6 @@ export function ChatTab({
   const renderMessage = (memory: Memory) => {
     const isOwnMessage = memory.sender === userType;
     const senderProfile = isOwnMessage ? userProfile : partnerProfile;
-
-    // Check if this memory has been deleted
-    if (deletedMemoryIds.has(memory.id)) {
-      return (
-        <div key={memory.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3 opacity-50`}>
-          <div className={`flex space-x-3 ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''} max-w-[85%]`}>
-            <Avatar className={`w-8 h-8 ring-2 ring-border flex-shrink-0 mt-0.5 ${isOwnMessage ? 'mr-0.5' : 'ml-0.5'}`}>
-              <AvatarImage src={senderProfile.photo} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary">{senderProfile.name[0]}</AvatarFallback>
-            </Avatar>
-            <div className={`space-y-2 ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col min-w-0 flex-1`}>
-              <div className={`px-3 py-2.5 rounded-2xl shadow-sm ${
-                isOwnMessage 
-                  ? 'bg-[rgb(241,241,241)] text-black/50 rounded-br-md' 
-                  : 'bg-white text-black/50 border border-border rounded-bl-md'
-              }`}>
-                <p className="text-sm italic">Message deleted</p>
-              </div>
-              <span className="text-xs text-muted-foreground px-1">
-                {formatTime(memory.timestamp)}
-              </span>
-            </div>
-          </div>
-        </div>
-      );
-    }
 
     return (
       <div key={memory.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-3 animate-fade-in`}>

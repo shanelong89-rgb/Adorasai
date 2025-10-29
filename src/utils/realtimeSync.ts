@@ -14,9 +14,10 @@ const supabase = getSupabaseClient();
 export interface PresenceState {
   userId: string;
   userName: string;
-  userPhoto?: string;
   online: boolean;
   lastSeen: string;
+  // Note: userPhoto is NOT stored in presence to keep payloads small
+  // Photos should be fetched separately from user profiles
 }
 
 export interface MemoryUpdate {
@@ -48,7 +49,6 @@ class RealtimeSyncManager {
   private connectionId: string | null = null;
   private userId: string | null = null;
   private userName: string | null = null;
-  private userPhoto: string | null = null;
   
   private presenceCallbacks: PresenceCallback[] = [];
   private memoryUpdateCallbacks: MemoryUpdateCallback[] = [];
@@ -68,9 +68,8 @@ class RealtimeSyncManager {
     connectionId: string;
     userId: string;
     userName: string;
-    userPhoto?: string;
   }): Promise<void> {
-    const { connectionId, userId, userName, userPhoto } = params;
+    const { connectionId, userId, userName } = params;
 
     // Don't attempt to connect if permanently disabled
     if (this.permanentlyDisabled) {
@@ -95,7 +94,6 @@ class RealtimeSyncManager {
       this.connectionId = connectionId;
       this.userId = userId;
       this.userName = userName;
-      this.userPhoto = userPhoto || null;
 
       console.log('🔌 Connecting to real-time channel:', connectionId);
 
@@ -110,7 +108,19 @@ class RealtimeSyncManager {
       // Subscribe to presence changes
       this.channel.on('presence', { event: 'sync' }, () => {
         const state = this.channel!.presenceState();
-        console.log('👥 Presence synced:', state);
+        
+        // Log presence sync without photos (to avoid huge console logs)
+        const presenceSummary = Object.entries(state).reduce((acc, [key, values]: [string, any[]]) => {
+          const presence = values[0];
+          acc[key] = {
+            userId: presence?.userId,
+            userName: presence?.userName,
+            online: true,
+            hasPhoto: !!presence?.userPhoto
+          };
+          return acc;
+        }, {} as Record<string, any>);
+        console.log('👥 Presence synced:', presenceSummary);
         
         // Convert presence state to our format
         const presences: Record<string, PresenceState> = {};
@@ -120,7 +130,6 @@ class RealtimeSyncManager {
             presences[key] = {
               userId: presence.userId,
               userName: presence.userName,
-              userPhoto: presence.userPhoto,
               online: true,
               lastSeen: new Date().toISOString(),
             };
@@ -158,11 +167,10 @@ class RealtimeSyncManager {
           this.isConnected = true;
           this.reconnectAttempts = 0;
 
-          // Track our presence
+          // Track our presence (without photo to keep payload small)
           const presenceData: PresenceState = {
             userId,
             userName,
-            userPhoto: userPhoto || undefined,
             online: true,
             lastSeen: new Date().toISOString(),
           };
@@ -245,10 +253,12 @@ class RealtimeSyncManager {
         
         // Unsubscribe from channel - wrap in try/catch
         try {
-          await supabase.removeChannel(channelToRemove);
+          if (channelToRemove && typeof channelToRemove.unsubscribe === 'function') {
+            await supabase.removeChannel(channelToRemove);
+          }
         } catch (removeError) {
-          // Silently handle removeChannel errors (channel might already be removed)
-          console.warn('⚠️ Error removing channel (channel may already be removed):', removeError);
+          // Silently handle removeChannel errors - this is expected during cleanup
+          // Channel might already be removed by Supabase or never fully initialized
         }
       } catch (error) {
         console.error('❌ Error during disconnect:', error);
@@ -376,7 +386,6 @@ class RealtimeSyncManager {
         presences[key] = {
           userId: presence.userId,
           userName: presence.userName,
-          userPhoto: presence.userPhoto,
           online: true,
           lastSeen: new Date().toISOString(),
         };

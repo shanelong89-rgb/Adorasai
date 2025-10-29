@@ -9,6 +9,9 @@ import { PrivacySecurity } from './PrivacySecurity';
 import { StorageData } from './StorageData';
 import { HelpFeedback } from './HelpFeedback';
 import { InvitationDialog } from './InvitationDialog';
+import { InvitationManagement } from './InvitationManagement';
+import { KeeperConnections } from './KeeperConnections';
+import { TellerConnections } from './TellerConnections';
 import { PresenceIndicator, PresenceDot, ConnectionStatus } from './PresenceIndicator';
 import { SafariInstallBanner } from './SafariInstallBanner';
 import { UserProfile, Memory, UserType, Storyteller, LegacyKeeper, DisplayLanguage } from '../App';
@@ -19,13 +22,15 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Menu, Zap, MessageCircle, Image, User, Check, UserPlus, Bell, Shield, Database, HelpCircle, LogOut } from 'lucide-react';
+import { Menu, Zap, MessageCircle, Image, User, Check, UserPlus, Bell, Shield, Database, HelpCircle, LogOut, List, Users } from 'lucide-react';
 import adorasLogo from 'figma:asset/c0ceb92d68e5b47f201fa6ace32aa529988746ee.png';
 import { useAuth } from '../utils/api/AuthContext';
 import type { PresenceState } from '../utils/realtimeSync';
 import { useTranslation } from '../utils/i18n';
 import { NotificationMiniBadge } from './NotificationBadge';
+import { apiClient } from '../utils/api/client';
 import { showNativeNotificationBanner } from '../utils/notificationService';
+import { InAppToastContainer, useInAppToasts } from './InAppToast';
 
 interface DashboardProps {
   userType: UserType;
@@ -46,7 +51,12 @@ interface DashboardProps {
   onDeleteMemory?: (memoryId: string) => void;
   onUpdateProfile: (updates: Partial<UserProfile>) => void;
   onCreateInvitation?: (partnerName: string, partnerRelationship: string, phoneNumber: string) => Promise<{ success: boolean; invitationId?: string; message?: string; error?: string }>;
+  onConnectViaEmail?: (email: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   onAcceptInvitation?: (invitationCode: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  memoriesByStoryteller?: Record<string, Memory[]>;
+  memoriesByLegacyKeeper?: Record<string, Memory[]>;
+  presences?: Record<string, PresenceState>;
+  realtimeConnected?: boolean;
 }
 
 export function Dashboard({ 
@@ -68,11 +78,16 @@ export function Dashboard({
   onDeleteMemory,
   onUpdateProfile,
   onCreateInvitation,
-  onAcceptInvitation
+  onConnectViaEmail,
+  onAcceptInvitation,
+  memoriesByStoryteller = {},
+  memoriesByLegacyKeeper = {}
 }: DashboardProps) {
   const { signout } = useAuth();
   const { t } = useTranslation(userProfile.appLanguage || 'english');
+  const { toasts, showToast, closeToast } = useInAppToasts();
   const [activeTab, setActiveTab] = useState('prompts');
+  const [shouldScrollChatToBottom, setShouldScrollChatToBottom] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activePrompt, setActivePrompt] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -82,6 +97,10 @@ export function Dashboard({
   const [showStorageData, setShowStorageData] = useState(false);
   const [showHelpFeedback, setShowHelpFeedback] = useState(false);
   const [showInvitationDialog, setShowInvitationDialog] = useState(false);
+  const [showInvitationManagement, setShowInvitationManagement] = useState(false);
+  const [showKeeperConnections, setShowKeeperConnections] = useState(false);
+  const [showTellerConnections, setShowTellerConnections] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showHeader, setShowHeader] = useState(true);
   const lastScrollY = useRef(0);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,23 +111,124 @@ export function Dashboard({
     return stored ? parseInt(stored) : Date.now();
   });
 
+  // DEFENSIVE: Validate that memories match the active connection
+  // This prevents chat mixing if AppContent sends wrong data
+  const validatedMemories = React.useMemo(() => {
+    const activeConnectionId = userType === 'keeper' ? activeStorytellerId : activeLegacyKeeperId;
+    const expectedMemories = userType === 'keeper' 
+      ? (memoriesByStoryteller[activeConnectionId] || [])
+      : (memoriesByLegacyKeeper[activeConnectionId] || []);
+    
+    // Compare memory arrays by IDs to detect mismatches
+    const memoriesIds = memories.map(m => m.id).sort().join(',');
+    const expectedIds = expectedMemories.map(m => m.id).sort().join(',');
+    
+    if (memoriesIds !== expectedIds) {
+      // MISMATCH DETECTED - This can happen during state transitions
+      // Only warn if it's been more than 2 seconds since last state change
+      const timeSinceChange = Date.now() - (window._lastMemoryStateChange || 0);
+      const shouldWarn = timeSinceChange > 2000;
+      
+      if (shouldWarn && expectedMemories.length > 0) {
+        // Only warn if we have expected memories (not during initial load)
+        console.warn(`⚠️ MEMORY MISMATCH DETECTED!`, {
+          activeConnectionId,
+          memoriesCount: memories.length,
+          expectedCount: expectedMemories.length,
+          timeSinceChange: `${timeSinceChange}ms`
+        });
+      }
+      
+      // If we have expected memories, use those; otherwise use global
+      return expectedMemories.length > 0 ? expectedMemories : memories;
+    }
+    
+    return memories;
+  }, [memories, userType, activeStorytellerId, activeLegacyKeeperId, memoriesByStoryteller, memoriesByLegacyKeeper]);
+
   // Refs for tab content containers to handle scrolling
   const promptsContainerRef = useRef<HTMLDivElement>(null);
   const mediaContainerRef = useRef<HTMLDivElement>(null);
 
-  // Calculate unread message count (messages from partner since last read)
-  const unreadMessageCount = React.useMemo(() => {
-    if (!partnerProfile) return 0;
+  // Calculate unread message count per connection for sidebar badges
+  const getUnreadCountForConnection = React.useCallback((connectionId: string) => {
+    // Get the last read timestamp for this specific connection
+    const stored = localStorage.getItem(`lastChatRead_${userProfile.id}_${connectionId}`);
+    const connectionLastRead = stored ? parseInt(stored) : 0;
     
-    return memories.filter(memory => {
-      // Only count messages (text or voice messages) from partner
-      const isFromPartner = memory.senderId === partnerProfile.id;
+    // Get memories for this specific connection
+    const connectionMemories = userType === 'keeper' 
+      ? (memoriesByStoryteller[connectionId] || [])
+      : (memoriesByLegacyKeeper[connectionId] || []);
+    
+    const unreadCount = connectionMemories.filter(memory => {
+      // Check if this message is from the partner (not from the current user)
+      const isFromPartner = memory.sender !== userType;
       const isMessage = memory.type === 'text' || memory.type === 'voice';
-      const isUnread = memory.timestamp.getTime() > lastChatReadTimestamp;
+      const isUnread = memory.timestamp.getTime() > connectionLastRead;
       
       return isFromPartner && isMessage && isUnread;
     }).length;
-  }, [memories, partnerProfile, lastChatReadTimestamp]);
+    
+    // DEBUG: Log details for troubleshooting
+    if (connectionMemories.length > 0) {
+      console.log(`🔔 Notification check for connection ${connectionId}:`, {
+        totalMemories: connectionMemories.length,
+        lastReadTimestamp: new Date(connectionLastRead).toISOString(),
+        unreadCount,
+        recentMessages: connectionMemories.slice(-3).map(m => ({
+          type: m.type,
+          sender: m.sender,
+          timestamp: m.timestamp.toISOString(),
+          isFromPartner: m.sender !== userType,
+          isUnread: m.timestamp.getTime() > connectionLastRead,
+        })),
+      });
+    }
+    
+    return unreadCount;
+  }, [userProfile.id, userType, memoriesByStoryteller, memoriesByLegacyKeeper]);
+
+  // Calculate unread message count across ALL connections for Chat tab badge
+  const unreadMessageCount = React.useMemo(() => {
+    let totalUnread = 0;
+    
+    // Get all connections based on user type
+    const allConnectionIds = userType === 'keeper' 
+      ? Object.keys(memoriesByStoryteller)
+      : Object.keys(memoriesByLegacyKeeper);
+    
+    // Sum up unread counts from all connections
+    allConnectionIds.forEach(connectionId => {
+      totalUnread += getUnreadCountForConnection(connectionId);
+    });
+    
+    console.log(`📊 Total unread messages across all connections: ${totalUnread}`);
+    
+    return totalUnread;
+  }, [userType, memoriesByStoryteller, memoriesByLegacyKeeper, getUnreadCountForConnection]);
+
+  // Load pending connection requests count
+  const loadPendingRequestsCount = React.useCallback(async () => {
+    try {
+      const response = await apiClient.getConnectionRequests();
+      if (response.success && response.receivedRequests) {
+        const pending = response.receivedRequests.filter((r: any) => r.status === 'pending');
+        setPendingRequestsCount(pending.length);
+      }
+    } catch (error) {
+      // Silently handle connection request errors - this is a non-critical feature
+      // User can still manually check in Settings > Connections
+      console.log('ℹ️ Connection requests check skipped (server may be slow or unavailable)');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingRequestsCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadPendingRequestsCount, 30000);
+    return () => clearInterval(interval);
+  }, [loadPendingRequestsCount]);
 
   // Update document title with unread count
   useEffect(() => {
@@ -119,48 +239,147 @@ export function Dashboard({
     }
   }, [unreadMessageCount, activeTab]);
 
-  // Track previous memory count to detect new messages
-  const prevMemoryCountRef = useRef(memories.length);
+  // Mark messages as read after viewing chat tab for 2 seconds
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      const timer = setTimeout(() => {
+        const now = Date.now();
+        setLastChatReadTimestamp(now);
+        localStorage.setItem(`lastChatRead_${userProfile.id}`, now.toString());
+        
+        // Also mark messages as read for the currently active connection
+        const activeConnectionId = userType === 'keeper' ? activeStorytellerId : activeLegacyKeeperId;
+        if (activeConnectionId) {
+          localStorage.setItem(`lastChatRead_${userProfile.id}_${activeConnectionId}`, now.toString());
+          console.log(`✅ Marked messages as read for connection: ${activeConnectionId}`);
+        }
+      }, 2000); // 2 second delay to let user see notification badge first
+      
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, userProfile.id, userType, activeStorytellerId, activeLegacyKeeperId]);
+
+  // Track previous memory IDs to detect truly NEW messages (not just re-renders)
+  const prevMemoryIdsRef = useRef<Set<string>>(new Set());
+  const lastNotificationTimeRef = useRef<number>(Date.now());
   
   useEffect(() => {
-    // Check if a new message was added (not just initial load)
-    if (memories.length > prevMemoryCountRef.current && prevMemoryCountRef.current > 0) {
-      const newMemory = memories[memories.length - 1];
+    // Get current memory IDs
+    const currentMemoryIds = new Set(validatedMemories.map(m => m.id));
+    
+    // Find NEW memories that weren't in the previous set
+    const newMemories = validatedMemories.filter(m => 
+      !prevMemoryIdsRef.current.has(m.id) &&
+      // Only consider messages from the last 10 seconds as "new"
+      // This prevents old messages from triggering notifications during initial load/refresh
+      m.timestamp.getTime() > (Date.now() - 10000)
+    );
+    
+    // Update the ref for next comparison
+    prevMemoryIdsRef.current = currentMemoryIds;
+    
+    // Process each truly new memory
+    newMemories.forEach(newMemory => {
+      console.log(`🆕 Detected truly NEW memory:`, {
+        id: newMemory.id,
+        type: newMemory.type,
+        sender: newMemory.sender,
+        timestamp: newMemory.timestamp.toISOString(),
+        age: Date.now() - newMemory.timestamp.getTime(),
+      });
       
-      // Only notify if:
-      // 1. It's from partner
-      // 2. It's a message (text or voice)
-      // 3. User is not currently on chat tab
-      if (
-        partnerProfile &&
-        newMemory.senderId === partnerProfile.id &&
-        (newMemory.type === 'text' || newMemory.type === 'voice') &&
-        activeTab !== 'chat'
-      ) {
-        // Show iOS native notification banner (like iMessage)
-        const messagePreview = newMemory.type === 'voice' 
-          ? '🎤 Voice message' 
+      // Skip if this is not from partner
+      if (!partnerProfile || newMemory.sender === userType) {
+        console.log('   ℹ️ Skipping notification - message from self');
+        return;
+      }
+      
+      // Skip if not a relevant message type
+      if (newMemory.type !== 'text' && newMemory.type !== 'voice') {
+        console.log('   ℹ️ Skipping notification - not a text/voice message');
+        return;
+      }
+      
+      // Throttle notifications to prevent spam (max 1 per second)
+      const now = Date.now();
+      if (now - lastNotificationTimeRef.current < 1000) {
+        console.log('   ⏱️ Throttling notification - too soon after last notification');
+        return;
+      }
+      lastNotificationTimeRef.current = now;
+      
+      // Check if this is a prompt from keeper to teller
+      const isPrompt = newMemory.promptQuestion && 
+                      newMemory.category === 'Prompts' && 
+                      newMemory.tags?.includes('prompt');
+      
+      // Auto-set activePrompt for tellers when they receive a prompt from keeper
+      if (isPrompt && userType === 'teller') {
+        setActivePrompt(newMemory.promptQuestion || '');
+        console.log('   ✅ Set active prompt for teller:', newMemory.promptQuestion);
+      }
+      
+      // Prepare notification content
+      {
+        const messagePreview = isPrompt
+          ? `💡 ${newMemory.promptQuestion?.substring(0, 80)}${(newMemory.promptQuestion?.length || 0) > 80 ? '...' : ''}`
+          : newMemory.type === 'voice'
+          ? '🎤 Voice message'
           : newMemory.content.substring(0, 100);
         
-        showNativeNotificationBanner(
-          partnerProfile.name,
-          messagePreview,
-          {
-            icon: partnerProfile.photo || '/apple-touch-icon.png',
-            tag: `message_${newMemory.id}`,
-            data: {
-              memoryId: newMemory.id,
-              senderId: newMemory.senderId,
-              type: 'message',
-            },
+        const notificationTitle = isPrompt 
+          ? `${partnerProfile.name} sent you a prompt`
+          : partnerProfile.name;
+        
+        const notificationType: 'message' | 'prompt' = isPrompt ? 'prompt' : 'message';
+        
+        console.log(`   🔔 Showing notification: ${notificationTitle} - ${messagePreview}`);
+        
+        // If user is NOT on chat tab, show native notification banner
+        if (activeTab !== 'chat') {
+          showNativeNotificationBanner(
+            notificationTitle,
+            messagePreview,
+            {
+              icon: partnerProfile.photo || '/apple-touch-icon.png',
+              tag: `message_${newMemory.id}`,
+              data: {
+                memoryId: newMemory.id,
+                sender: newMemory.sender,
+                type: isPrompt ? 'prompt' : 'message',
+              },
+              onClick: () => {
+                // Navigate to chat tab when notification is clicked
+                setActiveTab('chat');
+                // Trigger scroll to bottom to show new message
+                setShouldScrollChatToBottom(true);
+                // If it's a prompt, set it as the active prompt
+                if (isPrompt && newMemory.promptQuestion) {
+                  setActivePrompt(newMemory.promptQuestion);
+                }
+              },
+            }
+          );
+        } else {
+          // If user IS on chat tab, show in-app toast notification
+          // This ensures prompts and messages are always visible even when already on chat
+          showToast({
+            type: notificationType,
+            title: notificationTitle,
+            body: messagePreview,
+            avatar: partnerProfile.photo || '/apple-touch-icon.png',
             onClick: () => {
-              // Navigate to chat tab when notification is clicked
-              setActiveTab('chat');
+              // Trigger scroll to bottom to see the new message
+              setShouldScrollChatToBottom(true);
+              // If it's a prompt, ensure it's set as active prompt
+              if (isPrompt && newMemory.promptQuestion) {
+                setActivePrompt(newMemory.promptQuestion);
+              }
             },
-          }
-        );
+          });
+        }
 
-        // Play subtle notification sound
+        // Play subtle notification sound (for both cases)
         try {
           const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
           const oscillator = audioContext.createOscillator();
@@ -181,15 +400,13 @@ export function Dashboard({
           console.log('Could not play notification sound:', error);
         }
 
-        // Vibrate if supported
+        // Vibrate if supported (for both cases)
         if ('vibrate' in navigator) {
           navigator.vibrate([50, 100, 50]);
         }
       }
-    }
-    
-    prevMemoryCountRef.current = memories.length;
-  }, [memories, partnerProfile, activeTab]);
+    });
+  }, [validatedMemories, partnerProfile, activeTab, userType, showToast]);
 
   // Initial scroll to top on mount (for Prompts tab after onboarding)
   useEffect(() => {
@@ -248,17 +465,16 @@ export function Dashboard({
     // Always show header when switching tabs
     setShowHeader(true);
     
-    // Mark messages as read when switching to chat tab
-    if (newTab === 'chat') {
-      const now = Date.now();
-      setLastChatReadTimestamp(now);
-      localStorage.setItem(`lastChatRead_${userProfile.id}`, now.toString());
-    }
+    // Note: Messages will be marked as read only when user is actively viewing them in ChatTab
+    // Don't mark as read immediately when switching tabs - let user see the notification first
     
     // Auto-scroll behavior on tab change
     // Prompts and Media tabs: scroll to top
-    // Chat tab: stays at latest message (bottom) - handled by ChatTab component
-    if (newTab === 'prompts') {
+    // Chat tab: scroll to bottom to see latest messages
+    if (newTab === 'chat') {
+      // Trigger scroll to bottom when switching to chat
+      setShouldScrollChatToBottom(true);
+    } else if (newTab === 'prompts') {
       // Scroll to absolute top to ensure Today's Prompt is fully visible
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -379,7 +595,7 @@ export function Dashboard({
                       </button>
                     </div>
 
-                    {userType === 'child' && storytellers.length > 0 && (
+                    {userType === 'keeper' && storytellers.length > 0 && (
                       <div className="space-y-1.5 sm:space-y-2">
                         <h3 className="text-xs sm:text-sm font-medium text-[#ECF0E2] px-1" style={{ fontFamily: 'Inter' }}>
                           Switch Storyteller
@@ -391,6 +607,12 @@ export function Dashboard({
                               onClick={() => {
                                 onSwitchStoryteller?.(storyteller.id);
                                 setIsMenuOpen(false);
+                                // Mark messages as read for this connection when switching to them
+                                const now = Date.now();
+                                localStorage.setItem(`lastChatRead_${userProfile.id}_${storyteller.id}`, now.toString());
+                                // Update the main chat read timestamp too
+                                setLastChatReadTimestamp(now);
+                                localStorage.setItem(`lastChatRead_${userProfile.id}`, now.toString());
                               }}
                               className={`w-full flex items-center space-x-2 sm:space-x-2.5 p-2 sm:p-2.5 rounded-lg transition-colors ${
                                 activeStorytellerId === storyteller.id
@@ -408,16 +630,29 @@ export function Dashboard({
                                 {storyteller.isConnected && (
                                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#6EDB3F] rounded-full border-2 border-[#36453B]"></div>
                                 )}
+                                {/* Unread message badge */}
+                                {getUnreadCountForConnection(storyteller.id) > 0 && (
+                                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-semibold border-2 border-[#36453B] animate-pulse">
+                                    {getUnreadCountForConnection(storyteller.id) > 9 ? '9+' : getUnreadCountForConnection(storyteller.id)}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex-1 text-left min-w-0">
-                                <div className="flex items-center space-x-1.5">
-                                  <p className="font-medium text-white text-sm sm:text-base truncate" style={{ fontFamily: 'Archivo' }}>{storyteller.name}</p>
-                                  {activeStorytellerId === storyteller.id && (
-                                    <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-1.5 min-w-0 flex-1">
+                                    <p className="font-medium text-white text-sm sm:text-base truncate" style={{ fontFamily: 'Archivo' }}>{storyteller.name}</p>
+                                    {activeStorytellerId === storyteller.id && (
+                                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  {getUnreadCountForConnection(storyteller.id) > 0 && (
+                                    <span className="text-[10px] sm:text-xs font-medium text-white bg-red-500/20 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" style={{ fontFamily: 'Inter' }}>
+                                      {getUnreadCountForConnection(storyteller.id)} new
+                                    </span>
                                   )}
                                 </div>
                                 <p className="text-xs sm:text-sm text-[#ECF0E2] truncate" style={{ fontFamily: 'Inter' }}>
-                                  {storyteller.relationship}
+                                  {storyteller.lastMessage || storyteller.relationship}
                                 </p>
                               </div>
                             </button>
@@ -438,6 +673,12 @@ export function Dashboard({
                               onClick={() => {
                                 onSwitchLegacyKeeper?.(legacyKeeper.id);
                                 setIsMenuOpen(false);
+                                // Mark messages as read for this connection when switching to them
+                                const now = Date.now();
+                                localStorage.setItem(`lastChatRead_${userProfile.id}_${legacyKeeper.id}`, now.toString());
+                                // Update the main chat read timestamp too
+                                setLastChatReadTimestamp(now);
+                                localStorage.setItem(`lastChatRead_${userProfile.id}`, now.toString());
                               }}
                               className={`w-full flex items-center space-x-2 sm:space-x-2.5 p-2 sm:p-2.5 rounded-lg transition-colors ${
                                 activeLegacyKeeperId === legacyKeeper.id
@@ -455,16 +696,29 @@ export function Dashboard({
                                 {legacyKeeper.isConnected && (
                                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#6EDB3F] rounded-full border-2 border-[#36453B]"></div>
                                 )}
+                                {/* Unread message badge */}
+                                {getUnreadCountForConnection(legacyKeeper.id) > 0 && (
+                                  <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-semibold border-2 border-[#36453B] animate-pulse">
+                                    {getUnreadCountForConnection(legacyKeeper.id) > 9 ? '9+' : getUnreadCountForConnection(legacyKeeper.id)}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex-1 text-left min-w-0">
-                                <div className="flex items-center space-x-1.5">
-                                  <p className="font-medium text-white text-sm sm:text-base truncate" style={{ fontFamily: 'Archivo' }}>{legacyKeeper.name}</p>
-                                  {activeLegacyKeeperId === legacyKeeper.id && (
-                                    <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-1.5 min-w-0 flex-1">
+                                    <p className="font-medium text-white text-sm sm:text-base truncate" style={{ fontFamily: 'Archivo' }}>{legacyKeeper.name}</p>
+                                    {activeLegacyKeeperId === legacyKeeper.id && (
+                                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  {getUnreadCountForConnection(legacyKeeper.id) > 0 && (
+                                    <span className="text-[10px] sm:text-xs font-medium text-white bg-red-500/20 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" style={{ fontFamily: 'Inter' }}>
+                                      {getUnreadCountForConnection(legacyKeeper.id)} new
+                                    </span>
                                   )}
                                 </div>
                                 <p className="text-xs sm:text-sm text-[#ECF0E2] truncate" style={{ fontFamily: 'Inter' }}>
-                                  {legacyKeeper.relationship}
+                                  {legacyKeeper.lastMessage || legacyKeeper.relationship}
                                 </p>
                               </div>
                             </button>
@@ -475,18 +729,71 @@ export function Dashboard({
                     
                     {/* Additional Menu Items - Compressed */}
                     <div className="space-y-0.5 sm:space-y-1">
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start text-white hover:bg-white/10 hover:text-[#F1F1F1] h-9 sm:h-10 text-sm"
-                        onClick={() => {
-                          // Handle invite friend
-                          setIsMenuOpen(false);
-                          setShowInvitationDialog(true);
-                        }}
-                      >
-                        <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-                        {t('createInvitation')}
-                      </Button>
+                      {/* Keepers: Create Invitation + Manage Invitations + Connections */}
+                      {userType === 'keeper' && (
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            className="w-full justify-start text-white hover:bg-white/10 hover:text-[#F1F1F1] h-9 sm:h-10 text-sm"
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              setShowInvitationDialog(true);
+                            }}
+                          >
+                            <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                            {t('createInvitation')}
+                          </Button>
+                          
+                          <Button 
+                            variant="ghost" 
+                            className="w-full justify-start text-white hover:bg-white/10 hover:text-[#F1F1F1] h-9 sm:h-10 text-sm"
+                            onClick={() => {
+                              setShowInvitationManagement(true);
+                              setIsMenuOpen(false);
+                            }}
+                          >
+                            <List className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                            Manage Invitations
+                          </Button>
+
+                          <Button 
+                            variant="ghost" 
+                            className="w-full justify-start text-white hover:bg-white/10 hover:text-[#F1F1F1] h-9 sm:h-10 text-sm relative"
+                            onClick={() => {
+                              setShowKeeperConnections(true);
+                              setIsMenuOpen(false);
+                            }}
+                          >
+                            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                            Connections
+                            {pendingRequestsCount > 0 && (
+                              <span className="ml-auto inline-flex items-center justify-center w-5 h-5 text-[10px] font-semibold bg-red-500 text-white rounded-full">
+                                {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                              </span>
+                            )}
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Tellers: Unified Connections Page (Requests + Active) */}
+                      {userType === 'teller' && (
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start text-white hover:bg-white/10 hover:text-[#F1F1F1] h-9 sm:h-10 text-sm relative"
+                          onClick={() => {
+                            setShowTellerConnections(true);
+                            setIsMenuOpen(false);
+                          }}
+                        >
+                          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+                          Connections
+                          {pendingRequestsCount > 0 && (
+                            <span className="ml-auto inline-flex items-center justify-center w-5 h-5 text-[10px] font-semibold bg-red-500 text-white rounded-full">
+                              {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                            </span>
+                          )}
+                        </Button>
+                      )}
                       
                       <Button 
                         variant="ghost" 
@@ -606,7 +913,7 @@ export function Dashboard({
                 userType={userType}
                 partnerName={partnerProfile?.name}
                 onAddMemory={onAddMemory}
-                memories={memories}
+                memories={validatedMemories}
                 onNavigateToChat={handleNavigateToChat}
               />
             </div>
@@ -618,7 +925,7 @@ export function Dashboard({
                 userType={userType}
                 userProfile={userProfile}
                 partnerProfile={partnerProfile}
-                memories={memories}
+                memories={validatedMemories}
                 onAddMemory={onAddMemory}
                 activePrompt={activePrompt}
                 onClearPrompt={() => setActivePrompt(null)}
@@ -630,6 +937,8 @@ export function Dashboard({
                 onScrollDown={() => {
                   setShowHeader(false);
                 }}
+                shouldScrollToBottom={shouldScrollChatToBottom}
+                onScrollToBottomComplete={() => setShouldScrollChatToBottom(false)}
               />
             </div>
           )}
@@ -637,7 +946,7 @@ export function Dashboard({
           {activeTab === 'media' && (
             <div className="m-0 pt-4 px-2 pb-3 sm:px-4 sm:pb-4 flex-1">
               <MediaLibraryTab 
-                memories={memories}
+                memories={validatedMemories}
                 userType={userType}
                 userAge={userProfile.age || 20}
                 partnerBirthday={partnerProfile?.birthday}
@@ -668,6 +977,9 @@ export function Dashboard({
         <PrivacySecurity
           isOpen={showPrivacySecurity}
           onClose={() => setShowPrivacySecurity(false)}
+          userProfile={userProfile}
+          onUpdateProfile={onUpdateProfile}
+          onLogout={signout}
         />
 
         {/* Storage Data Dialog */}
@@ -689,7 +1001,54 @@ export function Dashboard({
           onClose={() => setShowInvitationDialog(false)}
           userType={userType}
           onCreateInvitation={onCreateInvitation}
+          onConnectViaEmail={onConnectViaEmail}
           onAcceptInvitation={onAcceptInvitation}
+        />
+
+        {/* Invitation Management Dialog (Keepers only) */}
+        {userType === 'keeper' && (
+          <InvitationManagement
+            isOpen={showInvitationManagement}
+            onClose={() => setShowInvitationManagement(false)}
+            onCreateNew={() => setShowInvitationDialog(true)}
+          />
+        )}
+
+        {/* Keeper Connections (Unified Requests + Active) */}
+        {userType === 'keeper' && (
+          <KeeperConnections
+            isOpen={showKeeperConnections}
+            onClose={() => {
+              setShowKeeperConnections(false);
+              loadPendingRequestsCount();
+            }}
+            onConnectionsChanged={() => {
+              // Reload the page to refresh connections
+              window.location.reload();
+            }}
+            pendingCount={pendingRequestsCount}
+          />
+        )}
+
+        {/* Teller Connections (Unified Requests + Active) */}
+        <TellerConnections
+          isOpen={showTellerConnections}
+          onClose={() => {
+            setShowTellerConnections(false);
+            loadPendingRequestsCount();
+          }}
+          onConnectionsChanged={() => {
+            // Reload the page to refresh connections
+            window.location.reload();
+          }}
+          pendingCount={pendingRequestsCount}
+        />
+
+        {/* In-App Toast Notifications - Shows notifications even when on chat tab */}
+        <InAppToastContainer
+          notifications={toasts}
+          onClose={closeToast}
+          position="top-center"
         />
       </div>
     </>

@@ -20,28 +20,28 @@ export function ServerStatusBanner({ onDismiss }: ServerStatusBannerProps) {
   const [latency, setLatency] = useState<number | null>(null);
 
   useEffect(() => {
-    checkHealth();
+    checkHealth(false); // Use cached result on initial load
     
-    // Auto-check every 30 seconds if offline
+    // Auto-check every 60 seconds if offline
     const interval = setInterval(() => {
       if (status === 'offline') {
-        checkHealth();
+        checkHealth(false); // Use cached result
       }
-    }, 30000);
+    }, 60000); // Increased to 60 seconds to reduce unnecessary checks
     
     return () => clearInterval(interval);
   }, [status]);
 
-  const checkHealth = async () => {
+  const checkHealth = async (forceRefresh = false) => {
     setIsRefreshing(true);
-    const result = await checkServerHealth(true); // Force refresh
+    const result = await checkServerHealth(forceRefresh);
     setStatus(result.online ? 'online' : 'offline');
     setLatency(result.latency ?? null);
     setIsRefreshing(false);
   };
 
   const handleRefresh = () => {
-    checkHealth();
+    checkHealth(true); // Only force refresh when user manually clicks
   };
 
   // Don't show banner if server is online

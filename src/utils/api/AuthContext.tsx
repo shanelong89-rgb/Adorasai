@@ -39,11 +39,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(response.user);
             setAccessToken(token);
           } else {
-            // Token invalid, clear it
+            // Token invalid or expired - clear it silently
+            console.log('ℹ️ Session expired - please sign in again');
             apiClient.setAccessToken(null);
           }
         } catch (error) {
-          console.error('Failed to load user:', error);
+          // Check if it's an auth error (expected for expired tokens)
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('401') || errorMessage.includes('Invalid JWT') || errorMessage.includes('Unauthorized')) {
+            console.log('ℹ️ Previous session expired - please sign in');
+          } else {
+            console.error('Failed to load user:', error);
+          }
           apiClient.setAccessToken(null);
         }
       }

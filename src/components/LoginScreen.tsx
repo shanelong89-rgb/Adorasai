@@ -112,11 +112,15 @@ export function LoginScreen({ onSuccess, onSignUpClick, onBack }: LoginScreenPro
         // Log the full error for debugging
         console.error('❌ Sign in failed with error:', result.error);
         
+        // Clear any old tokens that might be causing issues
+        localStorage.removeItem('adoras_access_token');
+        sessionStorage.removeItem('adoras_access_token');
+        
         // Better error messages
         if (result.error?.includes('Failed to fetch') || result.error?.includes('Network')) {
           setError('Server connection failed. The backend may not be deployed. Please try again later or contact support.');
         } else if (result.error?.includes('Invalid login credentials') || result.error?.includes('Email not confirmed')) {
-          setError('Invalid email or password. If you don\'t have an account yet, please sign up first by clicking "Create New Account" below.');
+          setError('❌ Invalid email or password. This account may not exist yet. Please check your credentials or click "Don\'t have an account? Sign up" below to create a new account.');
         } else {
           // Show the actual error message from the backend
           setError(result.error || 'Sign in failed. Please check your credentials.');
@@ -183,11 +187,6 @@ export function LoginScreen({ onSuccess, onSignUpClick, onBack }: LoginScreenPro
       <Card className="w-full max-w-2xl space-y-6 sm:space-y-8 animate-slide-up shadow-lg border-border/30 bg-card/80 backdrop-blur-sm bg-[rgba(255,255,255,0)] p-6 sm:p-[40px] m-0">
         {/* Header matching SignUpInitialScreen */}
         <div className="text-center space-y-2 sm:space-y-4">
-          <div className="flex items-center justify-center gap-3 mb-2 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-primary/10 rounded-2xl">
-              <span className="text-3xl sm:text-4xl">📸</span>
-            </div>
-          </div>
           <h2 className="text-2xl sm:text-4xl font-medium" style={{ fontFamily: 'Archivo', letterSpacing: '-0.07em', color: '#36453B' }}>
             Welcome Back
           </h2>
@@ -239,8 +238,18 @@ export function LoginScreen({ onSuccess, onSignUpClick, onBack }: LoginScreenPro
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <div className="space-y-2">
-                <p>{error}</p>
+              <div className="space-y-3">
+                <p className="whitespace-pre-line">{error}</p>
+                {error.includes('Invalid login credentials') && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-900">
+                    <p className="font-medium mb-1">💡 Common Solutions:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      <li>Check email spelling (typos are common!)</li>
+                      <li>Verify password (check caps lock)</li>
+                      <li>New user? Click "Create New Account" below</li>
+                    </ul>
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="outline"

@@ -30,6 +30,11 @@ export interface UserProfile {
   birthday?: Date;
   phoneNumber?: string;
   appLanguage?: AppLanguage;
+  // Privacy & Security Settings
+  privacySettings?: {
+    privateProfile?: boolean;
+    shareLocationData?: boolean;
+  };
 }
 
 export interface Storyteller {
@@ -39,6 +44,8 @@ export interface Storyteller {
   bio: string;
   photo?: string;
   isConnected: boolean;
+  lastMessage?: string;
+  lastMessageTime?: Date;
 }
 
 export interface LegacyKeeper {
@@ -48,6 +55,8 @@ export interface LegacyKeeper {
   bio: string;
   photo?: string;
   isConnected: boolean;
+  lastMessage?: string;
+  lastMessageTime?: Date;
 }
 
 export interface Memory {

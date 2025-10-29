@@ -251,6 +251,97 @@ export async function createMemory(params: {
     connectionMemories.push(memoryId);
     await kv.set(Keys.connectionMemories(params.connectionId), connectionMemories);
 
+    // Send notification to the other person in the connection
+    try {
+      const recipientId = connection.keeperId === params.userId ? connection.tellerId : connection.keeperId;
+      
+      if (recipientId) {
+        // Get sender's profile for notification
+        const senderProfile = await kv.get<{ name?: string }>(Keys.user(params.userId));
+        const senderName = senderProfile?.name || 'Someone';
+        
+        // Determine notification title and body based on memory type
+        let notificationTitle = `New message from ${senderName}`;
+        let notificationBody = '';
+        
+        if (params.type === 'text') {
+          notificationBody = params.content.length > 100 
+            ? params.content.substring(0, 100) + '...' 
+            : params.content;
+        } else if (params.type === 'voice') {
+          notificationBody = params.transcript || '🎤 Voice message';
+        } else if (params.type === 'photo') {
+          notificationBody = '📷 Photo';
+        } else if (params.type === 'video') {
+          notificationBody = '🎥 Video';
+        } else if (params.type === 'document') {
+          notificationBody = `📄 ${params.documentFileName || 'Document'}`;
+        }
+        
+        // Send notification (use internal API - we're already in the server)
+        const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+        const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+        
+        if (vapidPublicKey && vapidPrivateKey) {
+          // Import the notification sending functionality
+          const webpush = await import('npm:web-push@3.6.7');
+          
+          // Get recipient's push subscriptions
+          const userSubsKey = `push_subs_list:${recipientId}`;
+          const userSubs = await kv.get(userSubsKey);
+          
+          if (userSubs && userSubs.subscriptions && userSubs.subscriptions.length > 0) {
+            const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:noreply@adoras.app';
+            
+            webpush.default.setVapidDetails(
+              vapidSubject,
+              vapidPublicKey,
+              vapidPrivateKey
+            );
+            
+            const notificationPayload = {
+              title: notificationTitle,
+              body: notificationBody,
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              data: {
+                type: 'new_message',
+                connectionId: params.connectionId,
+                memoryId: memoryId,
+                sender: senderName
+              },
+              tag: `message-${memoryId}`,
+              timestamp: Date.now(),
+              requireInteraction: false,
+            };
+            
+            // Send to all subscriptions
+            for (const subKey of userSubs.subscriptions) {
+              try {
+                const subData = await kv.get(subKey);
+                
+                if (subData && subData.subscription) {
+                  await webpush.default.sendNotification(
+                    subData.subscription,
+                    JSON.stringify(notificationPayload)
+                  );
+                  console.log(`✅ Notification sent to ${recipientId} for memory ${memoryId}`);
+                }
+              } catch (notifError) {
+                // Log but don't fail memory creation if notification fails
+                console.error(`⚠️ Failed to send notification:`, notifError);
+              }
+            }
+          } else {
+            console.log(`ℹ️ No push subscriptions found for user ${recipientId}`);
+          }
+        }
+      }
+    } catch (notificationError) {
+      // Log error but don't fail memory creation
+      console.error('Error sending notification:', notificationError);
+    }
+
     return {
       success: true,
       memory,
@@ -275,24 +366,50 @@ export async function getConnectionMemories(params: {
     // Verify connection exists and user is authorized
     const connection = await kv.get<Connection>(Keys.connection(params.connectionId));
     if (!connection) {
-      throw new Error('Connection not found');
+      console.warn(`⚠️ Connection not found: ${params.connectionId}`);
+      return {
+        success: true,
+        hasMemories: false,
+        memories: [],
+      };
     }
 
     if (connection.keeperId !== params.userId && connection.tellerId !== params.userId) {
-      throw new Error('User not authorized for this connection');
+      console.warn(`⚠️ User ${params.userId} not authorized for connection ${params.connectionId}`);
+      return {
+        success: false,
+        error: 'User not authorized for this connection',
+      };
     }
 
-    // Get memory IDs
-    const memoryIds = await kv.get<string[]>(Keys.connectionMemories(params.connectionId)) || [];
+    // Get memory IDs - handle null/undefined case
+    const memoryIds = await kv.get<string[]>(Keys.connectionMemories(params.connectionId));
+    
+    // If no memories exist yet, return empty array (not an error)
+    if (!memoryIds || memoryIds.length === 0) {
+      console.log(`ℹ️ No memories found for connection: ${params.connectionId}`);
+      return {
+        success: true,
+        hasMemories: false,
+        memories: [],
+      };
+    }
 
-    // Fetch all memories
+    // Fetch all memories - handle errors gracefully
     const memories = await Promise.all(
-      memoryIds.map(id => kv.get<Memory>(Keys.memory(id)))
+      memoryIds.map(async (id) => {
+        try {
+          return await kv.get<Memory>(Keys.memory(id));
+        } catch (error) {
+          console.error(`Error fetching memory ${id}:`, error);
+          return null;
+        }
+      })
     );
 
     // Filter out null memories and sort by timestamp
     const validMemories = memories
-      .filter((m): m is Memory => m !== null)
+      .filter((m): m is Memory => m !== null && m !== undefined)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     // Helper to extract file path from URL (handles both signed URLs and regular paths)
@@ -422,12 +539,14 @@ export async function getConnectionMemories(params: {
 
     return {
       success: true,
+      hasMemories: memoriesWithFreshUrls.length > 0,
       memories: memoriesWithFreshUrls,
     };
   } catch (error) {
     console.error('Error getting connection memories:', error);
     return {
       success: false,
+      hasMemories: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

@@ -321,12 +321,12 @@ export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory,
       onAddMemory({
         type: 'text',
         content: promptText,
-        sender: userType as 'child' | 'parent',
+        sender: userType as 'keeper' | 'teller',
         category: 'Prompts',
         tags: ['prompt', 'question'],
         promptQuestion: promptText
       });
-      toast.success('Prompt sent to Storyteller!');
+      toast.success('💡 Prompt sent to Storyteller! They will see it in the chat tab.');
     } else {
       toast.success('Ready to share your story!');
     }

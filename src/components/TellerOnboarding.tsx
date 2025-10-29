@@ -121,7 +121,7 @@ export function TellerOnboarding({ onComplete, onBack, isLoading = false, error 
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="inviteCode">Invitation Code (Optional)</Label>
+                  <Label htmlFor="inviteCode">Invitation Code</Label>
                   <Input
                     id="invite-code"
                     value={inviteCode}
@@ -139,15 +139,9 @@ export function TellerOnboarding({ onComplete, onBack, isLoading = false, error 
                 )}
                 <div className="bg-green-50 p-4 rounded-lg">
                   <p className="text-sm text-green-800">
-                    If you have an invitation code from your keeper, enter it above. Otherwise, you can skip and connect later.
+                    Enter your invitation code to sync with your keeper and start sharing memories together.
                   </p>
                 </div>
-                <Button
-                  onClick={handleSkipInvitation}
-                  className="w-full h-10 sm:h-11 text-sm sm:text-base mt-4"
-                >
-                  Skip Invitation
-                </Button>
               </div>
             </div>
           </div>
@@ -326,9 +320,20 @@ export function TellerOnboarding({ onComplete, onBack, isLoading = false, error 
           {(isLoading || isVerifying) ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            currentStep === 3 ? 'Get Started' : 'Continue'
+            currentStep === 1 ? 'Submit Code' : currentStep === 3 ? 'Get Started' : 'Continue'
           )}
         </Button>
+
+        {currentStep === 1 && (
+          <Button
+            onClick={handleSkipInvitation}
+            variant="ghost"
+            className="w-full h-10 sm:h-11 text-sm sm:text-base text-muted-foreground hover:text-foreground"
+            disabled={isLoading || isVerifying}
+          >
+            Skip invitation
+          </Button>
+        )}
       </Card>
     </div>
   );

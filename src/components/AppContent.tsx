@@ -134,6 +134,7 @@ export function AppContent() {
   useEffect(() => {
     let unsubscribePresence: (() => void) | null = null;
     let unsubscribeMemoryUpdates: (() => void) | null = null;
+    let isCleanedUp = false; // Track if this subscription has been cleaned up
 
     const setupRealtime = async () => {
       const connectionId = userType === 'keeper' ? activeStorytellerId : activeLegacyKeeperId;
@@ -143,61 +144,156 @@ export function AppContent() {
         return;
       }
 
-      console.log('🔌 Setting up real-time sync...');
+      console.log(`🔌 Setting up real-time sync for connection: ${connectionId}`);
 
       try {
         // Connect to real-time channel
+        // Note: We don't pass userPhoto to avoid huge payloads in presence data
+        // Photos are fetched separately when displaying user avatars
         await realtimeSync.connect({
           connectionId,
           userId: user.id,
           userName: user.name,
-          userPhoto: user.photo,
         });
 
         setRealtimeConnected(true);
 
         // Subscribe to presence updates
         unsubscribePresence = realtimeSync.onPresenceChange((presenceState) => {
+          if (isCleanedUp) return; // Ignore stale callbacks
           console.log('👥 Presence updated:', presenceState);
           setPresences(presenceState);
         });
 
         // Subscribe to memory updates from other clients
         unsubscribeMemoryUpdates = realtimeSync.onMemoryUpdate(async (update) => {
-          console.log('📡 Received memory update:', update);
+          if (isCleanedUp) {
+            console.log(`⚠️ IGNORING stale realtime update for ${update.connectionId} (subscription cleaned up)`);
+            return; // Ignore stale callbacks
+          }
+
+          console.log('📡 Received memory update:', update, { 
+            expectedConnectionId: connectionId,
+            updateConnectionId: update.connectionId,
+            isForCurrentConnection: update.connectionId === connectionId 
+          });
 
           // Ignore updates from ourselves (current user)
           if (update.userId === user.id) {
+            console.log('   ℹ️ Ignoring update from self');
             return;
           }
+
+          // CRITICAL: Get CURRENT active connection at time of update processing
+          // Don't use captured connectionId - it might be stale!
+          const currentActiveConnectionId = userType === 'keeper' ? activeStorytellerId : activeLegacyKeeperId;
+          const isActiveConnection = update.connectionId === currentActiveConnectionId;
+          
+          console.log(`   🎯 Update is for ${isActiveConnection ? 'ACTIVE' : 'BACKGROUND'} connection (active: ${currentActiveConnectionId}, update: ${update.connectionId})`);
 
           // Handle different update types
           if (update.action === 'create' && update.memory) {
             // Convert and add new memory
             const newMemory = convertApiMemoryToUIMemory(update.memory);
             
-            setMemories((prev) => {
-              // Check if memory already exists (prevent duplicates)
-              if (prev.some(m => m.id === newMemory.id)) {
-                return prev;
-              }
-              return [...prev, newMemory];
-            });
+            console.log(`   ➕ Adding new memory: ${newMemory.id} (${newMemory.type})`);
+            
+            // CRITICAL: Update per-connection cache FIRST (for Dashboard validation)
+            if (userType === 'keeper') {
+              setMemoriesByStoryteller((prev) => {
+                // Prevent duplicates in per-connection cache too
+                const existing = prev[update.connectionId] || [];
+                if (existing.some(m => m.id === newMemory.id)) {
+                  console.log(`   ⚠️ Memory ${newMemory.id} already exists in connection cache, skipping`);
+                  return prev;
+                }
+                return {
+                  ...prev,
+                  [update.connectionId]: [...existing, newMemory],
+                };
+              });
+            } else {
+              setMemoriesByLegacyKeeper((prev) => {
+                // Prevent duplicates in per-connection cache too
+                const existing = prev[update.connectionId] || [];
+                if (existing.some(m => m.id === newMemory.id)) {
+                  console.log(`   ⚠️ Memory ${newMemory.id} already exists in connection cache, skipping`);
+                  return prev;
+                }
+                return {
+                  ...prev,
+                  [update.connectionId]: [...existing, newMemory],
+                };
+              });
+            }
 
-            // Show notification
-            toast.info(`New memory from ${update.memory.sender === 'keeper' ? 'Legacy Keeper' : 'Storyteller'}!`, {
-              duration: 3000,
-            });
+            // THEN update global memories array if this is the ACTIVE connection
+            if (isActiveConnection) {
+              setMemories((prev) => {
+                // Check if memory already exists (prevent duplicates)
+                if (prev.some(m => m.id === newMemory.id)) {
+                  console.log(`   ⚠️ Memory ${newMemory.id} already exists in global array, skipping`);
+                  return prev;
+                }
+                return [...prev, newMemory];
+              });
+            } else {
+              console.log(`   ℹ️ Skipping global memories update for background connection`);
+            }
+
+            // Don't show toast notification here - let Dashboard handle it
+            // This prevents duplicate notifications
           } else if (update.action === 'update' && update.memory) {
             // Update existing memory
             const updatedMemory = convertApiMemoryToUIMemory(update.memory);
             
-            setMemories((prev) =>
-              prev.map((m) => (m.id === update.memoryId ? updatedMemory : m))
-            );
+            // CRITICAL: Update per-connection cache FIRST (for Dashboard validation)
+            if (userType === 'keeper') {
+              setMemoriesByStoryteller((prev) => ({
+                ...prev,
+                [update.connectionId]: (prev[update.connectionId] || []).map((m) => (m.id === update.memoryId ? updatedMemory : m)),
+              }));
+            } else {
+              setMemoriesByLegacyKeeper((prev) => ({
+                ...prev,
+                [update.connectionId]: (prev[update.connectionId] || []).map((m) => (m.id === update.memoryId ? updatedMemory : m)),
+              }));
+            }
+            
+            // THEN update global memories array if this is the ACTIVE connection
+            if (isActiveConnection) {
+              setMemories((prev) =>
+                prev.map((m) => (m.id === update.memoryId ? updatedMemory : m))
+              );
+            }
           } else if (update.action === 'delete') {
-            // Remove deleted memory
-            setMemories((prev) => prev.filter((m) => m.id !== update.memoryId));
+            console.log(`   🗑️ Deleting memory: ${update.memoryId}`);
+            
+            // CRITICAL: Update per-connection cache FIRST (for Dashboard validation)
+            if (userType === 'keeper') {
+              setMemoriesByStoryteller((prev) => ({
+                ...prev,
+                [update.connectionId]: (prev[update.connectionId] || []).filter((m) => m.id !== update.memoryId),
+              }));
+            } else {
+              setMemoriesByLegacyKeeper((prev) => ({
+                ...prev,
+                [update.connectionId]: (prev[update.connectionId] || []).filter((m) => m.id !== update.memoryId),
+              }));
+            }
+            
+            // THEN update global memories array if this is the ACTIVE connection
+            if (isActiveConnection) {
+              setMemories((prev) => {
+                const filtered = prev.filter((m) => m.id !== update.memoryId);
+                console.log(`   ✅ Removed from global array (${prev.length} → ${filtered.length})`);
+                return filtered;
+              });
+            } else {
+              console.log(`   ℹ️ Skipping global memories update for background connection`);
+            }
+            
+            console.log(`   ✅ Memory ${update.memoryId} deleted from all caches`);
           }
         });
 
@@ -213,6 +309,9 @@ export function AppContent() {
 
     // Cleanup on unmount or connection change
     return () => {
+      console.log('🧹 Cleaning up realtime sync...');
+      isCleanedUp = true; // Mark as cleaned up to prevent stale callbacks
+      
       if (unsubscribePresence) {
         unsubscribePresence();
       }
@@ -267,6 +366,41 @@ export function AppContent() {
 
     checkNotificationOnboarding();
   }, [currentScreen, user, isConnected, hasCheckedNotificationOnboarding]);
+
+  /**
+   * Update storytellers/legacyKeepers with last message when memories change
+   */
+  useEffect(() => {
+    if (!connections || connections.length === 0) return;
+    
+    // Update storytellers for keepers
+    if (userType === 'keeper' && storytellers.length > 0) {
+      setStorytellers(prevStorytellers => 
+        prevStorytellers.map(storyteller => {
+          const lastMessageInfo = getLastMessageForConnection(storyteller.id);
+          return {
+            ...storyteller,
+            lastMessage: lastMessageInfo?.message,
+            lastMessageTime: lastMessageInfo?.time,
+          };
+        })
+      );
+    }
+    
+    // Update legacy keepers for tellers
+    if (userType === 'teller' && legacyKeepers.length > 0) {
+      setLegacyKeepers(prevKeepers => 
+        prevKeepers.map(keeper => {
+          const lastMessageInfo = getLastMessageForConnection(keeper.id);
+          return {
+            ...keeper,
+            lastMessage: lastMessageInfo?.message,
+            lastMessageTime: lastMessageInfo?.time,
+          };
+        })
+      );
+    }
+  }, [memoriesByStoryteller, memoriesByLegacyKeeper, userType]);
 
   /**
    * Phase 3e: Clear expired cache and prefetch media on mount
@@ -513,12 +647,53 @@ export function AppContent() {
   };
 
   /**
+   * Get last message preview for a connection
+   */
+  const getLastMessageForConnection = (connectionId: string): { message: string; time: Date } | null => {
+    const connectionMemories = memoriesByStoryteller[connectionId] || memoriesByLegacyKeeper[connectionId] || [];
+    if (connectionMemories.length === 0) return null;
+    
+    // Filter to only text and voice messages (not photos, videos, documents, or prompts)
+    const messages = connectionMemories.filter(m => 
+      (m.type === 'text' || m.type === 'voice') && 
+      !m.promptQuestion // Exclude prompt questions
+    );
+    
+    if (messages.length === 0) return null;
+    
+    // Sort messages by timestamp to ensure we get the actual latest message
+    // This is critical because messages might be added out of order via realtime updates
+    const sortedMessages = [...messages].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    
+    // Get the most recent message (last in sorted array)
+    const lastMsg = sortedMessages[sortedMessages.length - 1];
+    
+    // Create preview text
+    let preview = '';
+    if (lastMsg.type === 'voice') {
+      preview = lastMsg.transcript || '🎤 Voice message';
+    } else {
+      preview = lastMsg.content;
+    }
+    
+    // Truncate to 50 characters
+    if (preview.length > 50) {
+      preview = preview.substring(0, 50) + '...';
+    }
+    
+    return { message: preview, time: lastMsg.timestamp };
+  };
+
+  /**
    * Phase 1d-4: Transform API connections to Storyteller format (for Keepers)
    */
   const transformConnectionsToStorytellers = async (apiConnections: ConnectionWithPartner[]) => {
     console.log('🔄 Transforming connections to storytellers...', apiConnections);
     const storytellerList: Storyteller[] = apiConnections.map((conn) => {
       console.log(`   - Connection ${conn.connection.id}: status='${conn.connection.status}', partner='${conn.partner?.name}'`);
+      const lastMessageInfo = getLastMessageForConnection(conn.connection.id);
       return {
         id: conn.connection.id,
         name: conn.partner?.name || 'Unknown',
@@ -526,27 +701,59 @@ export function AppContent() {
         bio: conn.partner?.bio || '',
         photo: conn.partner?.photo,
         isConnected: conn.connection.status === 'active',
+        lastMessage: lastMessageInfo?.message,
+        lastMessageTime: lastMessageInfo?.time,
       };
     });
 
     setStorytellers(storytellerList);
     
-    // Set first active connection as default
-    const firstActive = storytellerList.find((s) => s.isConnected);
-    console.log(`   First active storyteller:`, firstActive);
-    if (firstActive) {
-      console.log(`   🎯 Setting activeStorytellerId to: ${firstActive.id}`);
-      setActiveStorytellerId(firstActive.id);
+    // Try to restore the last active connection from localStorage
+    let targetConnection: Storyteller | undefined;
+    if (user?.id) {
+      const lastActiveId = localStorage.getItem(`adoras_last_active_connection_${user.id}`);
+      if (lastActiveId) {
+        targetConnection = storytellerList.find((s) => s.id === lastActiveId && s.isConnected);
+        if (targetConnection) {
+          console.log(`   ♻️ Restoring last active connection: ${targetConnection.name} (${lastActiveId})`);
+        } else {
+          console.log(`   ⚠️ Last active connection ${lastActiveId} not found or not active, falling back to first`);
+        }
+      }
+    }
+    
+    // If no restored connection, use first active connection as default
+    if (!targetConnection) {
+      targetConnection = storytellerList.find((s) => s.isConnected);
+      console.log(`   First active storyteller:`, targetConnection);
+    }
+    
+    if (targetConnection) {
+      console.log(`   🎯 Setting activeStorytellerId to: ${targetConnection.id}`);
+      setActiveStorytellerId(targetConnection.id);
       setPartnerProfile({
-        id: firstActive.id,
-        name: firstActive.name,
-        relationship: firstActive.relationship,
-        bio: firstActive.bio,
-        photo: firstActive.photo,
+        id: targetConnection.id,
+        name: targetConnection.name,
+        relationship: targetConnection.relationship,
+        bio: targetConnection.bio,
+        photo: targetConnection.photo,
       });
       setIsConnected(true);
-      console.log(`   ✅ Connected to storyteller: ${firstActive.name} (ID: ${firstActive.id})`);
-      await loadMemoriesForConnection(firstActive.id);
+      console.log(`   ✅ Connected to storyteller: ${targetConnection.name} (ID: ${targetConnection.id})`);
+      
+      // Load memories for the active connection FIRST (priority)
+      // Pass true to explicitly mark this as the active connection
+      console.log(`   📦 Loading memories for active connection: ${targetConnection.id}...`);
+      await loadMemoriesForConnection(targetConnection.id, true);
+      
+      // Then load memories for all other connections in background (for notification badges)
+      const otherConnections = storytellerList.filter(s => s.id !== targetConnection!.id);
+      if (otherConnections.length > 0) {
+        console.log(`   📦 Loading memories for ${otherConnections.length} other connections in background...`);
+        Promise.all(otherConnections.map(s => loadMemoriesForConnection(s.id, false))).catch(err => {
+          console.warn('⚠️ Some background memory loads failed:', err);
+        });
+      }
     } else if (storytellerList.length > 0) {
       const firstPending = storytellerList[0];
       console.log(`   🎯 Setting activeStorytellerId to pending: ${firstPending.id}`);
@@ -577,6 +784,7 @@ export function AppContent() {
     console.log('🔄 Transforming connections to legacy keepers...', apiConnections);
     const keeperList: LegacyKeeper[] = apiConnections.map((conn) => {
       console.log(`   - Connection ${conn.connection.id}: status='${conn.connection.status}', partner='${conn.partner?.name}'`);
+      const lastMessageInfo = getLastMessageForConnection(conn.connection.id);
       return {
         id: conn.connection.id,
         name: conn.partner?.name || 'Unknown',
@@ -584,26 +792,58 @@ export function AppContent() {
         bio: conn.partner?.bio || '',
         photo: conn.partner?.photo,
         isConnected: conn.connection.status === 'active',
+        lastMessage: lastMessageInfo?.message,
+        lastMessageTime: lastMessageInfo?.time,
       };
     });
 
     setLegacyKeepers(keeperList);
     
-    // Set first active connection as default
-    const firstActive = keeperList.find((k) => k.isConnected);
-    if (firstActive) {
-      console.log(`   🎯 Setting activeLegacyKeeperId to: ${firstActive.id}`);
-      setActiveLegacyKeeperId(firstActive.id);
+    // Try to restore the last active connection from localStorage
+    let targetConnection: LegacyKeeper | undefined;
+    if (user?.id) {
+      const lastActiveId = localStorage.getItem(`adoras_last_active_connection_${user.id}`);
+      if (lastActiveId) {
+        targetConnection = keeperList.find((k) => k.id === lastActiveId && k.isConnected);
+        if (targetConnection) {
+          console.log(`   ♻️ Restoring last active connection: ${targetConnection.name} (${lastActiveId})`);
+        } else {
+          console.log(`   ⚠️ Last active connection ${lastActiveId} not found or not active, falling back to first`);
+        }
+      }
+    }
+    
+    // If no restored connection, use first active connection as default
+    if (!targetConnection) {
+      targetConnection = keeperList.find((k) => k.isConnected);
+    }
+    
+    if (targetConnection) {
+      console.log(`   🎯 Setting activeLegacyKeeperId to: ${targetConnection.id}`);
+      setActiveLegacyKeeperId(targetConnection.id);
       setPartnerProfile({
-        id: firstActive.id,
-        name: firstActive.name,
-        relationship: firstActive.relationship,
-        bio: firstActive.bio,
-        photo: firstActive.photo,
+        id: targetConnection.id,
+        name: targetConnection.name,
+        relationship: targetConnection.relationship,
+        bio: targetConnection.bio,
+        photo: targetConnection.photo,
       });
       setIsConnected(true);
-      console.log(`   ✅ Connected to legacy keeper: ${firstActive.name} (ID: ${firstActive.id})`);
-      await loadMemoriesForConnection(firstActive.id);
+      console.log(`   ✅ Connected to legacy keeper: ${targetConnection.name} (ID: ${targetConnection.id})`);
+      
+      // Load memories for the active connection FIRST (priority)
+      // Pass true to explicitly mark this as the active connection
+      console.log(`   📦 Loading memories for active connection: ${targetConnection.id}...`);
+      await loadMemoriesForConnection(targetConnection.id, true);
+      
+      // Then load memories for all other connections in background (for notification badges)
+      const otherConnections = keeperList.filter(k => k.id !== targetConnection!.id);
+      if (otherConnections.length > 0) {
+        console.log(`   📦 Loading memories for ${otherConnections.length} other connections in background...`);
+        Promise.all(otherConnections.map(k => loadMemoriesForConnection(k.id, false))).catch(err => {
+          console.warn('⚠️ Some background memory loads failed:', err);
+        });
+      }
     } else if (keeperList.length > 0) {
       const firstPending = keeperList[0];
       console.log(`   🎯 Setting activeLegacyKeeperId to pending: ${firstPending.id}`);
@@ -629,12 +869,25 @@ export function AppContent() {
 
   /**
    * Phase 1d-5: Load memories for a specific connection
+   * @param connectionId - The connection to load memories for
+   * @param isActiveConnection - Optional flag to explicitly mark if this is the active connection.
+   *                            If true, always updates global memories array regardless of state.
    */
-  const loadMemoriesForConnection = async (connectionId: string) => {
-    console.log(`📡 Loading memories for connection: ${connectionId}`);
+  const loadMemoriesForConnection = async (connectionId: string, isActiveConnection?: boolean) => {
+    console.log(`📡 Loading memories for connection: ${connectionId}`, { isActiveConnection });
+    console.log(`   Current userType: ${userType}`);
+    console.log(`   Current activeStorytellerId: ${activeStorytellerId}`);
+    console.log(`   Current activeLegacyKeeperId: ${activeLegacyKeeperId}`);
     
     try {
+      console.log(`   🌐 Calling apiClient.getMemories(${connectionId})...`);
       const response = await apiClient.getMemories(connectionId);
+      console.log(`   📦 API Response:`, {
+        success: response.success,
+        memoriesCount: response.memories?.length ?? 0,
+        error: response.error,
+        hasMemories: !!response.memories
+      });
       
       if (response.success && response.memories) {
         console.log(`✅ Loaded ${response.memories.length} memories`);
@@ -646,28 +899,81 @@ export function AppContent() {
         console.log('🔄 Checking for expired URLs...');
         uiMemories = await refreshExpiredMemoryUrls(uiMemories);
         
-        // Update memories state
-        setMemories(uiMemories);
+        // Determine if we should update global memories
+        let shouldUpdateGlobal = false;
         
-        // Update memories by connection
-        if (userType === 'keeper') {
-          setMemoriesByStoryteller((prev) => ({
-            ...prev,
-            [connectionId]: uiMemories,
-          }));
+        if (isActiveConnection !== undefined) {
+          // If explicitly specified, use that
+          shouldUpdateGlobal = isActiveConnection;
+          console.log(`   📌 Using explicit isActiveConnection=${isActiveConnection}`);
         } else {
-          setMemoriesByLegacyKeeper((prev) => ({
-            ...prev,
-            [connectionId]: uiMemories,
-          }));
+          // Otherwise, check current state
+          const activeConnectionId = userType === 'keeper' ? activeStorytellerId : activeLegacyKeeperId;
+          shouldUpdateGlobal = (connectionId === activeConnectionId);
+          console.log(`   📌 Comparing with state: ${connectionId} === ${activeConnectionId} = ${shouldUpdateGlobal}`);
+        }
+        
+        // CRITICAL: Update per-connection cache FIRST before global memories
+        // This ensures Dashboard's validation logic always has the correct expected data
+        if (userType === 'keeper') {
+          setMemoriesByStoryteller((prev) => {
+            // Mark state change timestamp for validation
+            (window as any)._lastMemoryStateChange = Date.now();
+            return {
+              ...prev,
+              [connectionId]: uiMemories,
+            };
+          });
+        } else {
+          setMemoriesByLegacyKeeper((prev) => {
+            // Mark state change timestamp for validation
+            (window as any)._lastMemoryStateChange = Date.now();
+            return {
+              ...prev,
+              [connectionId]: uiMemories,
+            };
+          });
+        }
+        
+        // THEN update the global memories array if this is the ACTIVE connection
+        // This prevents background refreshes from mixing chats
+        if (shouldUpdateGlobal) {
+          console.log(`✅ Updating global memories for ACTIVE connection: ${connectionId}`);
+          setMemories(uiMemories);
+        } else {
+          console.log(`ℹ️ Skipping global memories update for background connection: ${connectionId}`);
         }
       } else {
-        console.warn(`⚠️ No memories found for connection: ${connectionId}`);
-        setMemories([]);
+        console.warn(`⚠️ API call succeeded but no memories found for connection: ${connectionId}`);
+        console.warn(`   Response details:`, { 
+          success: response.success, 
+          hasMemories: !!response.memories,
+          error: response.error 
+        });
+        // Don't clear memories if it's just a loading error - keep existing data
+        if (userType === 'keeper' && !memoriesByStoryteller[connectionId]) {
+          setMemoriesByStoryteller((prev) => ({ ...prev, [connectionId]: [] }));
+        } else if (userType === 'teller' && !memoriesByLegacyKeeper[connectionId]) {
+          setMemoriesByLegacyKeeper((prev) => ({ ...prev, [connectionId]: [] }));
+        }
       }
     } catch (error) {
-      console.error('❌ Failed to load memories:', error);
-      setMemories([]);
+      // Check if it's an auth error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Failed to load memories for connection ${connectionId}:`, error);
+      console.error(`   Error type: ${typeof error}`);
+      console.error(`   Error message: ${errorMessage}`);
+      console.error(`   Full error object:`, error);
+      
+      if (errorMessage.includes('401') || errorMessage.includes('Invalid JWT') || errorMessage.includes('Unauthorized')) {
+        console.warn('⚠️ Authentication error detected - user may need to sign in again');
+        toast.error('Authentication error. Please sign in again.');
+        // Don't clear existing memories - just skip this refresh
+        return;
+      }
+      
+      toast.error(`Failed to load memories: ${errorMessage}`);
+      // Don't clear existing memories on error - keep what we have
     }
   };
 
@@ -679,7 +985,14 @@ export function AppContent() {
   useEffect(() => {
     // User logged in - redirect to dashboard
     if (!isLoading && isAuthenticated && user && !hasInitializedAuth) {
-      console.log('✅ User is authenticated, redirecting to dashboard');
+      console.log('✅ User is authenticated, initializing dashboard');
+      console.log('   User details:', {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        type: user.type
+      });
+      console.log('   Access token exists:', !!accessToken);
       
       // Set user type from authenticated user
       setUserType(user.type as UserType);
@@ -722,8 +1035,9 @@ export function AppContent() {
         
         // Load connections after ensuring test users are set up
         console.log('📡 Loading connections from API...');
+        console.log('   Current accessToken:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NONE');
         await loadConnectionsFromAPI();
-        console.log('✅ Connections loaded');
+        console.log('✅ Connections loading completed');
       };
       
       // Wait for connections to load before navigating to dashboard
@@ -784,6 +1098,56 @@ export function AppContent() {
     }
   }, [isLoading, isAuthenticated, user, hasInitializedAuth]);
 
+  /**
+   * Periodic refresh: Reload memories for all connections every 2 minutes
+   * This ensures notification badges stay updated even if realtime sync misses updates
+   */
+  useEffect(() => {
+    if (currentScreen !== 'dashboard' || !user || !isAuthenticated) {
+      return;
+    }
+
+    const refreshAllConnections = async () => {
+      try {
+        console.log('🔄 Periodic refresh: Reloading all connections...');
+        
+        // Get current active connection BEFORE starting refresh
+        const currentActiveId = userType === 'keeper' ? activeStorytellerId : activeLegacyKeeperId;
+        console.log(`   📍 Current active connection at refresh start: ${currentActiveId}`);
+        
+        const allConnectionIds = userType === 'keeper' 
+          ? storytellers.map(s => s.id)
+          : legacyKeepers.map(k => k.id);
+        
+        if (allConnectionIds.length > 0) {
+          // Load connections sequentially to avoid race conditions
+          // Active connection first, then others
+          const activeFirst = [
+            currentActiveId,
+            ...allConnectionIds.filter(id => id !== currentActiveId)
+          ].filter(Boolean);
+          
+          console.log(`   📦 Refreshing ${activeFirst.length} connections (active first)`);
+          
+          for (const id of activeFirst) {
+            await loadMemoriesForConnection(id);
+          }
+          
+          console.log('✅ Periodic refresh complete');
+        }
+      } catch (error) {
+        // If auth fails, log it but don't crash
+        console.log('ℹ️ Periodic refresh skipped (authentication may have expired)');
+        // The user will need to sign in again to restore functionality
+      }
+    };
+
+    // Refresh every 2 minutes (increased from 60s to reduce server load and race conditions)
+    const interval = setInterval(refreshAllConnections, 120000);
+    
+    return () => clearInterval(interval);
+  }, [currentScreen, user, isAuthenticated, userType, storytellers, legacyKeepers, activeStorytellerId, activeLegacyKeeperId]);
+
   const handleWelcomeNext = () => {
     setCurrentScreen('userType');
   };
@@ -842,7 +1206,12 @@ export function AppContent() {
 
       if (result.success) {
         console.log('✅ Account created successfully!');
-        setUserProfile(profile);
+        // Merge profile with email from signup credentials
+        const completeProfile = {
+          ...profile,
+          email: signupCredentials.email,
+        };
+        setUserProfile(completeProfile);
 
         // Extract code and storyteller info
         const codeToUse = invitationCode || ('invitationCode' in profile ? (profile as any).invitationCode : undefined);
@@ -1629,10 +1998,7 @@ export function AppContent() {
         // Convert API memory to UI format
         const newMemory = convertApiMemoryToUIMemory(response.memory);
         
-        // Update local state
-        setMemories((prev) => [...prev, newMemory]);
-        
-        // Update memories by connection
+        // CRITICAL: Update per-connection cache FIRST (for Dashboard validation)
         if (userType === 'keeper') {
           setMemoriesByStoryteller((prev) => ({
             ...prev,
@@ -1644,6 +2010,9 @@ export function AppContent() {
             [connectionId]: [...(prev[connectionId] || []), newMemory],
           }));
         }
+        
+        // THEN update global state
+        setMemories((prev) => [...prev, newMemory]);
         
         // Phase 5: Broadcast memory creation to other clients
         if (realtimeConnected && user) {
@@ -1721,7 +2090,7 @@ export function AppContent() {
 
               console.log('📱 Push notification result:', result);
             } else {
-              console.warn('📱 No connection found - cannot send notification');
+              console.log('ℹ️ No partner connection yet - skipping notification (this is normal for new users)');
             }
           } catch (notifError) {
             console.error('❌ Failed to send push notification:', notifError);
@@ -1755,6 +2124,8 @@ export function AppContent() {
   const handleSwitchStoryteller = async (storytellerId: string) => {
     const storyteller = storytellers.find((s) => s.id === storytellerId);
     if (storyteller) {
+      console.log(`🔄 Switching to storyteller: ${storyteller.name} (${storytellerId})`);
+      
       setActiveStorytellerId(storytellerId);
       setPartnerProfile({
         id: storyteller.id,
@@ -1765,14 +2136,27 @@ export function AppContent() {
       });
       setIsConnected(storyteller.isConnected);
       
-      // Load memories from API
-      await loadMemoriesForConnection(storytellerId);
+      // Persist the last active connection to localStorage
+      if (user?.id) {
+        localStorage.setItem(`adoras_last_active_connection_${user.id}`, storytellerId);
+        console.log(`💾 Persisted last active connection: ${storytellerId}`);
+      }
+      
+      // Immediately load cached memories for instant UI update
+      const cachedMemories = memoriesByStoryteller[storytellerId] || [];
+      console.log(`📦 Loading ${cachedMemories.length} cached memories for ${storyteller.name}`);
+      setMemories(cachedMemories);
+      
+      // Then refresh from API in the background (explicitly mark as active connection)
+      await loadMemoriesForConnection(storytellerId, true);
     }
   };
   
   const handleSwitchLegacyKeeper = async (legacyKeeperId: string) => {
     const legacyKeeper = legacyKeepers.find((lk) => lk.id === legacyKeeperId);
     if (legacyKeeper) {
+      console.log(`🔄 Switching to legacy keeper: ${legacyKeeper.name} (${legacyKeeperId})`);
+      
       setActiveLegacyKeeperId(legacyKeeperId);
       setPartnerProfile({
         id: legacyKeeper.id,
@@ -1783,8 +2167,19 @@ export function AppContent() {
       });
       setIsConnected(legacyKeeper.isConnected);
       
-      // Load memories from API
-      await loadMemoriesForConnection(legacyKeeperId);
+      // Persist the last active connection to localStorage
+      if (user?.id) {
+        localStorage.setItem(`adoras_last_active_connection_${user.id}`, legacyKeeperId);
+        console.log(`💾 Persisted last active connection: ${legacyKeeperId}`);
+      }
+      
+      // Immediately load cached memories for instant UI update
+      const cachedMemories = memoriesByLegacyKeeper[legacyKeeperId] || [];
+      console.log(`📦 Loading ${cachedMemories.length} cached memories for ${legacyKeeper.name}`);
+      setMemories(cachedMemories);
+      
+      // Load memories from API (explicitly mark as active connection)
+      await loadMemoriesForConnection(legacyKeeperId, true);
     }
   };
 
@@ -1984,9 +2379,9 @@ export function AppContent() {
       
       // Call API to create invitation
       const response = await apiClient.createInvitation({
-        partnerName,
-        partnerRelationship,
-        phoneNumber,
+        tellerPhoneNumber: phoneNumber,
+        tellerName: partnerName,
+        tellerRelationship: partnerRelationship,
       });
       
       if (response.success && response.invitation) {
@@ -2056,6 +2451,43 @@ export function AppContent() {
     }
   };
 
+  /**
+   * Connect with existing user via email
+   * No invitation code needed - creates immediate connection
+   */
+  const handleConnectViaEmail = async (email: string) => {
+    try {
+      console.log('📧 Connecting via email...', email);
+      
+      // Call API to connect via email
+      const response = await apiClient.connectViaEmail(email);
+      
+      if (response.success) {
+        console.log('✅ Email connection established successfully');
+        
+        // Reload connections to show new active connection
+        await loadConnectionsFromAPI();
+        
+        return { 
+          success: true,
+          message: response.message || 'Connection established successfully!' 
+        };
+      } else {
+        console.error('❌ Failed to connect via email:', response.error);
+        return { 
+          success: false, 
+          error: response.error || 'Failed to connect via email' 
+        };
+      }
+    } catch (error) {
+      console.error('❌ Failed to connect via email:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to connect via email' 
+      };
+    }
+  };
+
   const renderCurrentScreen = () => {
     // Show loading screen while checking authentication
     if (isLoading) {
@@ -2097,7 +2529,7 @@ export function AppContent() {
           />
         );
       case 'userType':
-        return <UserTypeSelection onSelect={handleUserTypeSelect} />;
+        return <UserTypeSelection onSelect={handleUserTypeSelect} onBack={() => setCurrentScreen('welcome')} />;
       case 'keeperOnboarding':
         return (
           <KeeperOnboarding
@@ -2150,9 +2582,12 @@ export function AppContent() {
             onDeleteMemory={handleDeleteMemory}
             onUpdateProfile={handleUpdateProfile}
             onCreateInvitation={handleCreateInvitation}
+            onConnectViaEmail={handleConnectViaEmail}
             onAcceptInvitation={handleAcceptInvitation}
             presences={presences}
             realtimeConnected={realtimeConnected}
+            memoriesByStoryteller={memoriesByStoryteller}
+            memoriesByLegacyKeeper={memoriesByLegacyKeeper}
           />
         );
       default:

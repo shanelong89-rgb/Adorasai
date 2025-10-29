@@ -21,6 +21,11 @@ export interface UserProfile {
   age?: number;
   birthday?: string; // ISO date string
   appLanguage?: 'english' | 'spanish' | 'french' | 'chinese' | 'korean' | 'japanese';
+  // Privacy & Security Settings
+  privacySettings?: {
+    privateProfile?: boolean; // Only invited people can see memories
+    shareLocationData?: boolean; // Include location in memories
+  };
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -86,10 +91,12 @@ export interface Connection {
   id: string;
   keeperId: string; // Legacy Keeper user ID
   tellerId: string; // Storyteller user ID
-  status: 'pending' | 'active' | 'declined';
+  status: 'pending' | 'active' | 'declined' | 'disconnected';
   invitationCode?: string;
   createdAt: string; // ISO timestamp
   acceptedAt?: string; // ISO timestamp
+  disconnectedAt?: string; // ISO timestamp
+  disconnectedBy?: string; // User ID who initiated disconnect
 }
 
 export interface Invitation {
@@ -107,6 +114,20 @@ export interface Invitation {
   tellerRelationship?: string;
   tellerBio?: string;
   tellerPhoto?: string; // Base64 encoded image
+}
+
+export interface ConnectionRequest {
+  id: string;
+  requesterId: string; // Who sent the request
+  requesterName: string;
+  requesterEmail: string;
+  requesterPhoto?: string;
+  recipientId: string; // Who should accept the request
+  recipientName: string;
+  recipientEmail: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string; // ISO timestamp
+  respondedAt?: string; // ISO timestamp
 }
 
 export interface DailyPrompt {
@@ -132,10 +153,12 @@ export interface UserPrompt {
 // - user:{userId} -> UserProfile
 // - memory:{memoryId} -> Memory
 // - connection:{connectionId} -> Connection
+// - connection_request:{requestId} -> ConnectionRequest
 // - invitation:{code} -> Invitation
 // - prompt:{promptId} -> DailyPrompt
 // - user_prompt:{userId}:{date} -> UserPrompt
 // - user_connections:{userId} -> string[] (list of connection IDs)
+// - user_connection_requests:{userId} -> string[] (list of connection request IDs)
 // - connection_memories:{connectionId} -> string[] (list of memory IDs)
 // - user_invitations:{userId} -> string[] (list of invitation codes)
 
@@ -146,10 +169,12 @@ export const Keys = {
   user: (userId: string) => `user:${userId}`,
   memory: (memoryId: string) => `memory:${memoryId}`,
   connection: (connectionId: string) => `connection:${connectionId}`,
+  connectionRequest: (requestId: string) => `connection_request:${requestId}`,
   invitation: (code: string) => `invitation:${code}`,
   prompt: (promptId: string) => `prompt:${promptId}`,
   userPrompt: (userId: string, date: string) => `user_prompt:${userId}:${date}`,
   userConnections: (userId: string) => `user_connections:${userId}`,
+  userConnectionRequests: (userId: string) => `user_connection_requests:${userId}`,
   connectionMemories: (connectionId: string) => `connection_memories:${connectionId}`,
   userInvitations: (userId: string) => `user_invitations:${userId}`,
   
@@ -158,6 +183,7 @@ export const Keys = {
     users: 'user:',
     memories: 'memory:',
     connections: 'connection:',
+    connectionRequests: 'connection_request:',
     invitations: 'invitation:',
     prompts: 'prompt:',
     userPrompts: (userId: string) => `user_prompt:${userId}:`,

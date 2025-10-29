@@ -6,8 +6,8 @@
 import { projectId, publicAnonKey } from './supabase/info';
 
 const HEALTH_CHECK_URL = `https://${projectId}.supabase.co/functions/v1/make-server-deded1eb/health`;
-const HEALTH_CHECK_TIMEOUT = 8000; // 8 seconds max (increased for cold starts)
-const CACHE_DURATION = 30000; // Cache result for 30 seconds
+const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds max (reduced for faster feedback)
+const CACHE_DURATION = 60000; // Cache result for 60 seconds (reduced health check frequency)
 
 interface HealthCheckResult {
   online: boolean;
@@ -45,6 +45,8 @@ export async function checkServerHealth(forceRefresh = false): Promise<HealthChe
         'Accept': 'application/json',
         'Authorization': `Bearer ${publicAnonKey}`,
       },
+      // Disable caching to avoid stale responses
+      cache: 'no-store',
     });
     
     clearTimeout(timeoutId);
@@ -52,8 +54,7 @@ export async function checkServerHealth(forceRefresh = false): Promise<HealthChe
     const latency = Date.now() - startTime;
     
     if (response.ok) {
-      const data = await response.json();
-      
+      // Don't parse JSON if not needed - faster response
       cachedResult = {
         online: true,
         timestamp: now,
@@ -61,7 +62,13 @@ export async function checkServerHealth(forceRefresh = false): Promise<HealthChe
       };
       
       lastCheckTime = now;
-      console.log(`✅ Server health check passed (${latency}ms)`);
+      
+      // Only log if slow (>2 seconds) to reduce console noise
+      if (latency > 2000) {
+        console.warn(`⚠️ Slow health check: ${latency}ms (server may be cold-starting)`);
+      } else {
+        console.log(`✅ Server online (${latency}ms)`);
+      }
       
       return cachedResult;
     } else {

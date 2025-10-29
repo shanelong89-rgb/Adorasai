@@ -70,6 +70,7 @@ class AdorasAPIClient {
     // Check sessionStorage first (for current session)
     let token = sessionStorage.getItem('adoras_access_token');
     if (token) {
+      // Silent login - don't log for every request
       this.accessToken = token;
       this.useSessionStorage = true;
       return token;
@@ -78,11 +79,17 @@ class AdorasAPIClient {
     // Check localStorage (for remembered sessions)
     token = localStorage.getItem('adoras_access_token');
     if (token) {
+      // Silent login - don't log for every request
       this.accessToken = token;
       this.useSessionStorage = false;
       return token;
     }
     
+    // Only log "no token" warning once per session to avoid spam
+    if (!(window as any)._hasLoggedNoToken) {
+      console.warn('🔑 No token found - user needs to sign in');
+      (window as any)._hasLoggedNoToken = true;
+    }
     return null;
   }
 
@@ -131,13 +138,20 @@ class AdorasAPIClient {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(`❌ API Error [${endpoint}]:`, JSON.stringify(data, null, 2));
-        console.error(`❌ Full URL:`, fullUrl);
-        console.error(`❌ Status:`, response.status, response.statusText);
-        console.error(`❌ Headers sent:`, {
-          'Content-Type': headers['Content-Type'],
-          'Authorization': headers['Authorization'] ? 'Bearer [TOKEN]' : 'NONE',
-        });
+        // Use different log levels based on error type
+        if (response.status === 401) {
+          // Auth errors are warnings (user needs to sign in again)
+          console.warn(`⚠️ Authentication required [${endpoint}]:`, data.message || 'Invalid or expired token');
+        } else {
+          // Other errors are actual errors
+          console.error(`❌ API Error [${endpoint}]:`, JSON.stringify(data, null, 2));
+          console.error(`❌ Full URL:`, fullUrl);
+          console.error(`❌ Status:`, response.status, response.statusText);
+          console.error(`❌ Headers sent:`, {
+            'Content-Type': headers['Content-Type'],
+            'Authorization': headers['Authorization'] ? 'Bearer [TOKEN]' : 'NONE',
+          });
+        }
       }
 
       return data as T;
@@ -312,6 +326,35 @@ class AdorasAPIClient {
     });
   }
 
+  /**
+   * Change password
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    return this.request<{ success: boolean; error?: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+  /**
+   * Export all user data
+   */
+  async exportUserData(): Promise<{ success: boolean; data?: any; error?: string }> {
+    return this.request<{ success: boolean; data?: any; error?: string }>('/auth/export-data', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Delete user account
+   */
+  async deleteAccount(password: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request<{ success: boolean; message?: string; error?: string }>('/auth/delete-account', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  }
+
   // ============================================================================
   // INVITATIONS & CONNECTIONS
   // ============================================================================
@@ -335,7 +378,7 @@ class AdorasAPIClient {
     return this.request<VerifyInvitationResponse>('/invitations/verify', {
       method: 'POST',
       body: JSON.stringify({ code }),
-    });
+    }, false); // Invitation verification is public - no auth required
   }
 
   /**
@@ -358,11 +401,67 @@ class AdorasAPIClient {
   }
 
   /**
+   * Connect with existing user via email
+   */
+  async connectViaEmail(email: string): Promise<{ success: boolean; message?: string; error?: string; connection?: any; partner?: any }> {
+    return this.request<{ success: boolean; message?: string; error?: string; connection?: any; partner?: any }>('/invitations/connect-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  /**
+   * Delete/cancel an invitation
+   */
+  async deleteInvitation(code: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request<{ success: boolean; message?: string; error?: string }>(`/invitations/${code}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Get user's connection requests (sent and received)
+   */
+  async getConnectionRequests(): Promise<{ success: boolean; sentRequests?: any[]; receivedRequests?: any[]; error?: string }> {
+    return this.request<{ success: boolean; sentRequests?: any[]; receivedRequests?: any[]; error?: string }>('/connection-requests', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Accept a connection request
+   */
+  async acceptConnectionRequest(requestId: string): Promise<{ success: boolean; connection?: any; partner?: any; message?: string; error?: string }> {
+    return this.request<{ success: boolean; connection?: any; partner?: any; message?: string; error?: string }>(`/connection-requests/${requestId}/accept`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Decline a connection request
+   */
+  async declineConnectionRequest(requestId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request<{ success: boolean; message?: string; error?: string }>(`/connection-requests/${requestId}/decline`, {
+      method: 'POST',
+    });
+  }
+
+  /**
    * Get user's connections
    */
   async getConnections(): Promise<GetConnectionsResponse> {
     return this.request<GetConnectionsResponse>('/connections', {
       method: 'GET',
+    });
+  }
+
+  /**
+   * Disconnect from a connection
+   */
+  async disconnectConnection(connectionId: string, deleteMemories: boolean = false): Promise<{ success: boolean; message?: string; deletedMemoriesCount?: number; error?: string }> {
+    return this.request<{ success: boolean; message?: string; deletedMemoriesCount?: number; error?: string }>(`/connections/${connectionId}/disconnect`, {
+      method: 'POST',
+      body: JSON.stringify({ deleteMemories }),
     });
   }
 

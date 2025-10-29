@@ -125,6 +125,7 @@ export function recordMetric(
   const isAIEndpoint = metadata?.endpoint?.includes('ai/');
   const isAuthEndpoint = metadata?.endpoint?.includes('auth/');
   const isConnectionEndpoint = metadata?.endpoint === 'connections' || metadata?.endpoint?.includes('ensure-connected');
+  const isMemoryFetch = metadata?.endpoint?.includes('memories/');
   
   // Different thresholds for different operation types
   let threshold = 1000; // Default 1 second
@@ -137,6 +138,10 @@ export function recordMetric(
     // Auth and connection endpoints: Higher threshold for cold starts (server needs to boot)
     else if ((isAuthEndpoint || isConnectionEndpoint) && isColdStart) {
       threshold = 18000; // Auth/connection cold starts up to 18s are expected (Supabase Edge Function cold boot + DB queries)
+    }
+    // Memory fetches can be slow (large payloads, media URLs, etc.)
+    else if (isMemoryFetch) {
+      threshold = 5000; // Memory fetches up to 5s are acceptable
     }
     // API calls: 3 seconds threshold (cold starts can be slow)
     // Health check cold starts are expected - use higher threshold

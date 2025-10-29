@@ -217,6 +217,104 @@ app.put("/make-server-deded1eb/auth/profile", async (c) => {
   }
 });
 
+/**
+ * POST /make-server-deded1eb/auth/change-password
+ * Change user password
+ */
+app.post("/make-server-deded1eb/auth/change-password", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const body = await c.req.json();
+    const { currentPassword, newPassword } = body;
+
+    if (!currentPassword || !newPassword) {
+      return c.json({ success: false, error: "Missing required fields" }, 400);
+    }
+
+    const result = await auth.changePassword(verifyResult.userId, currentPassword, newPassword);
+    
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Change password error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Password change failed" 
+    }, 500);
+  }
+});
+
+/**
+ * GET /make-server-deded1eb/auth/export-data
+ * Export all user data (GDPR compliance)
+ */
+app.get("/make-server-deded1eb/auth/export-data", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const result = await auth.exportUserData(verifyResult.userId);
+    
+    return c.json(result, result.success ? 200 : 500);
+  } catch (error) {
+    console.error("Export data error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Data export failed" 
+    }, 500);
+  }
+});
+
+/**
+ * POST /make-server-deded1eb/auth/delete-account
+ * Delete user account and all associated data
+ */
+app.post("/make-server-deded1eb/auth/delete-account", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const body = await c.req.json();
+    const { password } = body;
+
+    if (!password) {
+      return c.json({ success: false, error: "Password required for account deletion" }, 400);
+    }
+
+    const result = await auth.deleteUserAccount(verifyResult.userId, password);
+    
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Delete account error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Account deletion failed" 
+    }, 500);
+  }
+});
+
 // ============================================================================
 // INVITATION & CONNECTION ROUTES
 // ============================================================================
@@ -328,6 +426,180 @@ app.post("/make-server-deded1eb/invitations/accept", async (c) => {
 });
 
 /**
+ * POST /make-server-deded1eb/invitations/connect-email
+ * Connect with existing user via email (no invitation code needed)
+ */
+app.post("/make-server-deded1eb/invitations/connect-email", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const body = await c.req.json();
+    const { email } = body;
+
+    if (!email) {
+      return c.json({ success: false, error: "Missing email address" }, 400);
+    }
+
+    const result = await invitations.connectViaEmail({
+      requesterId: verifyResult.userId,
+      partnerEmail: email,
+    });
+
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Connect via email error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to connect via email" 
+    }, 500);
+  }
+});
+
+/**
+ * DELETE /make-server-deded1eb/invitations/:code
+ * Delete/cancel an invitation
+ */
+app.delete("/make-server-deded1eb/invitations/:code", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const code = c.req.param("code");
+    if (!code) {
+      return c.json({ success: false, error: "Missing invitation code" }, 400);
+    }
+
+    const result = await invitations.deleteInvitation({
+      userId: verifyResult.userId,
+      code,
+    });
+
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Delete invitation error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to delete invitation" 
+    }, 500);
+  }
+});
+
+/**
+ * GET /make-server-deded1eb/connection-requests
+ * Get user's connection requests (sent and received)
+ */
+app.get("/make-server-deded1eb/connection-requests", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const result = await invitations.getConnectionRequests(verifyResult.userId);
+
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Get connection requests error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to get connection requests" 
+    }, 500);
+  }
+});
+
+/**
+ * POST /make-server-deded1eb/connection-requests/:requestId/accept
+ * Accept a connection request
+ */
+app.post("/make-server-deded1eb/connection-requests/:requestId/accept", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const requestId = c.req.param("requestId");
+    if (!requestId) {
+      return c.json({ success: false, error: "Missing request ID" }, 400);
+    }
+
+    const result = await invitations.acceptConnectionRequest({
+      userId: verifyResult.userId,
+      requestId,
+    });
+
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Accept connection request error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to accept connection request" 
+    }, 500);
+  }
+});
+
+/**
+ * POST /make-server-deded1eb/connection-requests/:requestId/decline
+ * Decline a connection request
+ */
+app.post("/make-server-deded1eb/connection-requests/:requestId/decline", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const requestId = c.req.param("requestId");
+    if (!requestId) {
+      return c.json({ success: false, error: "Missing request ID" }, 400);
+    }
+
+    const result = await invitations.declineConnectionRequest({
+      userId: verifyResult.userId,
+      requestId,
+    });
+
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Decline connection request error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to decline connection request" 
+    }, 500);
+  }
+});
+
+/**
  * GET /make-server-deded1eb/connections
  * Get user's connections
  */
@@ -350,6 +622,46 @@ app.get("/make-server-deded1eb/connections", async (c) => {
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : "Failed to get connections" 
+    }, 500);
+  }
+});
+
+/**
+ * POST /make-server-deded1eb/connections/:connectionId/disconnect
+ * Disconnect from a connection with option to delete memories
+ */
+app.post("/make-server-deded1eb/connections/:connectionId/disconnect", async (c) => {
+  try {
+    const accessToken = c.req.header("Authorization")?.split(" ")[1];
+    if (!accessToken) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const verifyResult = await auth.verifyToken(accessToken);
+    if (!verifyResult.success || !verifyResult.userId) {
+      return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    const connectionId = c.req.param("connectionId");
+    if (!connectionId) {
+      return c.json({ success: false, error: "Missing connection ID" }, 400);
+    }
+
+    const body = await c.req.json();
+    const deleteMemories = body.deleteMemories === true;
+
+    const result = await invitations.disconnectConnection({
+      userId: verifyResult.userId,
+      connectionId,
+      deleteMemories,
+    });
+
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error) {
+    console.error("Disconnect connection error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to disconnect connection" 
     }, 500);
   }
 });
@@ -425,25 +737,38 @@ app.get("/make-server-deded1eb/memories/:connectionId", async (c) => {
   try {
     const accessToken = c.req.header("Authorization")?.split(" ")[1];
     if (!accessToken) {
-      return c.json({ success: false, error: "Unauthorized" }, 401);
+      console.log("🔑 No token found - user needs to sign in");
+      return c.json({ success: false, error: "No authentication token provided" }, 401);
     }
 
     const verifyResult = await auth.verifyToken(accessToken);
     if (!verifyResult.success || !verifyResult.userId) {
-      return c.json({ success: false, error: "Unauthorized" }, 401);
+      console.log("❌ Token verification failed");
+      return c.json({ success: false, error: "Invalid or expired token" }, 401);
     }
 
     const connectionId = c.req.param("connectionId");
+    console.log(`📥 Getting memories for connection: ${connectionId}`);
+    
     const result = await memories.getConnectionMemories({
       connectionId,
       userId: verifyResult.userId,
     });
+
+    // Log result summary without full data
+    if (result.success) {
+      console.log(`✅ Found ${result.memories?.length || 0} memories for connection ${connectionId}`);
+    } else {
+      console.warn(`⚠️ API call succeeded but no memories found for connection: ${connectionId}`);
+      console.log(`   Response details:`, JSON.stringify(result, null, 2));
+    }
 
     return c.json(result);
   } catch (error) {
     console.error("Get memories error:", error);
     return c.json({ 
       success: false, 
+      hasMemories: false,
       error: error instanceof Error ? error.message : "Failed to get memories" 
     }, 500);
   }
@@ -816,5 +1141,115 @@ app.get("/make-server-deded1eb/test/check-connection", async (c) => {
     }, 500);
   }
 });
+
+// ============================================================================
+// DIAGNOSTIC ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /make-server-deded1eb/diagnostic/invitations
+ * List all invitations in the database (for debugging)
+ */
+app.get("/make-server-deded1eb/diagnostic/invitations", async (c) => {
+  try {
+    const { Keys } = await import('./database.tsx');
+    const allInvitations = await kv.getByPrefix(Keys.prefixes.invitations);
+    
+    const formattedInvitations = allInvitations.map((inv: any) => ({
+      code: inv.code,
+      keeperId: inv.keeperId,
+      tellerName: inv.tellerName || 'Not specified',
+      tellerPhoneNumber: inv.tellerPhoneNumber,
+      status: inv.status,
+      sentAt: inv.sentAt,
+      expiresAt: inv.expiresAt,
+    }));
+    
+    return c.json({
+      success: true,
+      totalInvitations: allInvitations.length,
+      invitations: formattedInvitations,
+    });
+  } catch (error) {
+    console.error("Diagnostic error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to list invitations" 
+    }, 500);
+  }
+});
+
+/**
+ * GET /make-server-deded1eb/diagnostic/users
+ * List all users in the database (for debugging)
+ */
+app.get("/make-server-deded1eb/diagnostic/users", async (c) => {
+  try {
+    const { Keys } = await import('./database.tsx');
+    const allUsers = await kv.getByPrefix(Keys.prefixes.users);
+    
+    const formattedUsers = allUsers.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      type: user.type,
+      phoneNumber: user.phoneNumber || 'Not specified',
+      createdAt: user.createdAt,
+    }));
+    
+    return c.json({
+      success: true,
+      totalUsers: allUsers.length,
+      users: formattedUsers,
+    });
+  } catch (error) {
+    console.error("Diagnostic error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to list users" 
+    }, 500);
+  }
+});
+
+/**
+ * GET /make-server-deded1eb/diagnostic/connections
+ * List all connections in the database (for debugging)
+ */
+app.get("/make-server-deded1eb/diagnostic/connections", async (c) => {
+  try {
+    const { Keys } = await import('./database.tsx');
+    const allConnections = await kv.getByPrefix(Keys.prefixes.connections);
+    
+    const formattedConnections = await Promise.all(allConnections.map(async (conn: any) => {
+      const keeper = await kv.get(Keys.user(conn.keeperId));
+      const teller = await kv.get(Keys.user(conn.tellerId));
+      
+      return {
+        id: conn.id,
+        keeper: keeper ? { id: keeper.id, name: keeper.name, email: keeper.email } : null,
+        teller: teller ? { id: teller.id, name: teller.name, email: teller.email } : null,
+        status: conn.status,
+        invitationCode: conn.invitationCode,
+        createdAt: conn.createdAt,
+      };
+    }));
+    
+    return c.json({
+      success: true,
+      totalConnections: allConnections.length,
+      connections: formattedConnections,
+    });
+  } catch (error) {
+    console.error("Diagnostic error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to list connections" 
+    }, 500);
+  }
+});
+
+console.log('🚀 Adoras Server initialized successfully');
+console.log('✅ All routes registered');
+console.log('📡 Server is ready to accept requests');
 
 Deno.serve(app.fetch);

@@ -36,9 +36,11 @@ import { getCacheStats, clearAllCache } from '../utils/mediaCache';
 import { getQueueStats, clearQueue } from '../utils/offlineQueue';
 import { useNetworkStatus } from '../utils/networkStatus';
 import { TestInvitationDebug } from './TestInvitationDebug';
+import { InvitationDiagnostic } from './InvitationDiagnostic';
 import { PWADiagnostic } from './PWADiagnostic';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { IconGenerator } from './IconGenerator';
+import { MemoryLoadingDiagnostic } from './MemoryLoadingDiagnostic';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface DebugPanelProps {
@@ -47,7 +49,7 @@ interface DebugPanelProps {
 }
 
 export function DebugPanel({ isOpen, onClose }: DebugPanelProps) {
-  const [activeTab, setActiveTab] = useState<'errors' | 'performance' | 'cache' | 'network' | 'test'>('errors');
+  const [activeTab, setActiveTab] = useState<'errors' | 'performance' | 'cache' | 'network' | 'test' | 'memory'>('errors');
   const [errorStats, setErrorStats] = useState<any>(null);
   const [perfStats, setPerfStats] = useState<any>(null);
   const [cacheStats, setCacheStats] = useState<any>(null);
@@ -99,6 +101,7 @@ export function DebugPanel({ isOpen, onClose }: DebugPanelProps) {
             { id: 'performance', label: 'Performance', icon: Activity },
             { id: 'cache', label: 'Storage', icon: HardDrive },
             { id: 'network', label: 'Network', icon: Wifi },
+            { id: 'memory', label: 'Memories', icon: Database },
             { id: 'test', label: 'Test', icon: Users },
           ].map((tab) => (
             <button
@@ -130,6 +133,9 @@ export function DebugPanel({ isOpen, onClose }: DebugPanelProps) {
           )}
           {activeTab === 'network' && (
             <NetworkTab networkStatus={networkStatus} />
+          )}
+          {activeTab === 'memory' && (
+            <MemoryTab />
           )}
           {activeTab === 'test' && (
             <TestTab />
@@ -520,6 +526,9 @@ function TestTab() {
         </div>
       </div>
       <TestInvitationDebug />
+
+      {/* Invitation Diagnostic */}
+      <InvitationDiagnostic />
 
       {/* PWA Diagnostic */}
       <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
