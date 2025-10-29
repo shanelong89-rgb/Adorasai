@@ -15,8 +15,6 @@ export default defineConfig({
     alias: {
       // Remove version specifiers from imports
       'sonner@2.0.3': 'sonner',
-      'date-fns@4.1.0': 'date-fns',
-      'date-fns@3.6.0': 'date-fns',
       'lucide-react@0.487.0': 'lucide-react',
       'react-day-picker@8.10.1': 'react-day-picker',
       '@radix-ui/react-accordion@1.2.3': '@radix-ui/react-accordion',
