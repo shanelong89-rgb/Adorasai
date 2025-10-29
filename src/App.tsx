@@ -215,7 +215,6 @@ export default function App() {
         <GroqAPIKeySetup 
           open={groqDialogOpen} 
           onOpenChange={setGroqDialogOpen}
-          providedKey="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"
         />
         <Toaster 
           position="top-center" 

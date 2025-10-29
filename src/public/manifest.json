@@ -56,57 +56,5 @@
   "notifications": {
     "preferredLanguage": "en-US"
   },
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/screenshot-desktop.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "View Memories",
-      "short_name": "Memories",
-      "description": "Browse your family memories",
-      "url": "/?tab=media",
-      "icons": [
-        {
-          "src": "/icon-memories.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Daily Prompts",
-      "short_name": "Prompts",
-      "description": "Answer today's memory prompt",
-      "url": "/?tab=prompts",
-      "icons": [
-        {
-          "src": "/icon-prompts.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Chat",
-      "short_name": "Chat",
-      "description": "Chat with family",
-      "url": "/?tab=chat",
-      "icons": [
-        {
-          "src": "/icon-chat.png",
-          "sizes": "96x96"
-        }
-      ]
-    }
-  ],
   "related_applications": []
 }
