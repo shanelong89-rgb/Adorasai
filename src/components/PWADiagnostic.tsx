@@ -153,7 +153,7 @@ export const PWADiagnostic: React.FC = () => {
 
               {/* Meta Tags */}
               <div className="border rounded-lg p-3">
-                <div className="font-['Inter']" style={{ fontSize: '0.875rem', fontWeight: 600 }} className="mb-2">
+                <div className="font-['Inter']" style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                   iOS Meta Tags
                 </div>
                 <div className="space-y-1 ml-2 text-xs">
@@ -174,7 +174,7 @@ export const PWADiagnostic: React.FC = () => {
 
               {/* Recommendations */}
               <div className="border-t pt-4 mt-4">
-                <h3 className="font-['Inter']" style={{ fontSize: '0.875rem', fontWeight: 600 }} className="mb-2">
+                <h3 className="font-['Inter']" style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                   Recommendations:
                 </h3>
                 <div className="space-y-2 text-sm">
