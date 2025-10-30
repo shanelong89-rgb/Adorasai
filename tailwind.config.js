@@ -2,10 +2,21 @@
 export default {
   content: [
     "./index.html",
-    "./App.tsx",
-    "./main.tsx",
-    "./components/**/*.{ts,tsx}",
-    "./utils/**/*.{ts,tsx}",
+    "./**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  safelist: [
+    'bg-primary',
+    'text-white',
+    'rounded-full',
+    'bg-black',
+    'bg-white',
+    'border',
+    'shadow-2xl',
+    'hover:bg-white/95',
+    'hover:bg-black/90',
+    'hover:bg-gray-50',
+    'hover:bg-white/20',
   ],
   theme: {
     extend: {
