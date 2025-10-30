@@ -7,9 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
   ],
-  root: '.',
+  root: './src',
   build: {
-    outDir: 'build',
+    outDir: '../build',
     sourcemap: true,
     emptyOutDir: true,
     rollupOptions: {
@@ -18,7 +18,7 @@ export default defineConfig({
       }
     }
   },
-  publicDir: 'src/public',
+  publicDir: 'public',
   server: {
     port: 3000,
   },
