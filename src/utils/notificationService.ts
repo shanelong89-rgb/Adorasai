@@ -633,3 +633,127 @@ export async function clearBadge(): Promise<void> {
     }
   }
 }
+
+/**
+ * CRITICAL: Setup realtime notification listeners
+ * This enables instant in-app notifications when the app is open
+ * Works alongside push notifications for when app is closed
+ */
+import { getSupabaseClient } from './supabase/client';
+
+export function setupRealtimeNotificationListeners(params: {
+  userId: string;
+  connectionId: string;
+  onNewMemory?: (memory: any) => void;
+  onNewMessage?: (message: any) => void;
+}) {
+  const supabase = getSupabaseClient();
+  const { userId, connectionId, onNewMemory, onNewMessage } = params;
+
+  console.log('🔔 Setting up realtime notification listeners for user:', userId);
+
+  // Listen for new memories in this connection
+  const memoryChannel = supabase
+    .channel(`notifications:memories:${connectionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'memories',
+        filter: `connection_id=eq.${connectionId}`,
+      },
+      (payload) => {
+        console.log('🔔 New memory received via realtime:', payload);
+        
+        const memory = payload.new;
+        
+        // Don't notify if this user created the memory
+        if (memory.user_id === userId) {
+          console.log('🔔 Skipping notification (own memory)');
+          return;
+        }
+
+        // Show in-app notification if app is focused
+        if (document.hasFocus()) {
+          // Trigger callback for in-app toast
+          if (onNewMemory) {
+            onNewMemory(memory);
+          }
+        } else {
+          // Show native browser notification if app is not focused
+          showNativeNotificationBanner(
+            'New Memory Shared!',
+            memory.title || 'Someone shared a new memory',
+            {
+              icon: '/icon-192.png',
+              tag: `memory-${memory.id}`,
+              data: { memoryId: memory.id, type: 'memory' },
+            }
+          );
+        }
+
+        // Update badge count
+        updateBadgeCount(1);
+      }
+    )
+    .subscribe((status) => {
+      console.log('🔔 Memory channel status:', status);
+    });
+
+  // Listen for new chat messages in this connection
+  const chatChannel = supabase
+    .channel(`notifications:chat:${connectionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `connection_id=eq.${connectionId}`,
+      },
+      (payload) => {
+        console.log('🔔 New chat message received via realtime:', payload);
+        
+        const message = payload.new;
+        
+        // Don't notify if this user sent the message
+        if (message.sender_id === userId) {
+          console.log('🔔 Skipping notification (own message)');
+          return;
+        }
+
+        // Show in-app notification if app is focused
+        if (document.hasFocus()) {
+          // Trigger callback for in-app toast
+          if (onNewMessage) {
+            onNewMessage(message);
+          }
+        } else {
+          // Show native browser notification if app is not focused
+          showNativeNotificationBanner(
+            'New Message',
+            message.content || 'You have a new message',
+            {
+              icon: '/icon-192.png',
+              tag: `message-${message.id}`,
+              data: { messageId: message.id, type: 'message' },
+            }
+          );
+        }
+
+        // Update badge count
+        updateBadgeCount(1);
+      }
+    )
+    .subscribe((status) => {
+      console.log('🔔 Chat channel status:', status);
+    });
+
+  // Return cleanup function
+  return () => {
+    console.log('🔔 Cleaning up realtime notification listeners');
+    supabase.removeChannel(memoryChannel);
+    supabase.removeChannel(chatChannel);
+  };
+}
