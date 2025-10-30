@@ -101,7 +101,7 @@ export function SignUpInitialScreen({
   const UserIcon = userType === 'keeper' ? Crown : Users;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-background animate-fade-in relative">
+    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 animate-fade-in relative" style={{ backgroundColor: 'rgb(245, 249, 233)' }}>
       {/* Timeline at the top */}
       <div ref={rulerRef} className="absolute top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-[90vw] md:max-w-none md:w-auto">
         <div className="flex items-start justify-between md:gap-1">
@@ -146,7 +146,7 @@ export function SignUpInitialScreen({
         </button>
       </div>
 
-      <Card className="w-full max-w-2xl space-y-6 sm:space-y-8 animate-slide-up shadow-lg border-border/30 bg-card/80 backdrop-blur-sm bg-[rgba(255,255,255,0)] p-6 sm:p-[40px] m-0">
+      <Card className="w-full max-w-2xl space-y-6 sm:space-y-8 animate-slide-up shadow-lg border-border/30 backdrop-blur-sm bg-transparent p-6 sm:p-[40px] m-0">
         {/* Header matching UserTypeSelection */}
         <div className="text-center space-y-2 sm:space-y-4">
           <div className="flex items-center justify-center gap-3 mb-2 sm:mb-4">

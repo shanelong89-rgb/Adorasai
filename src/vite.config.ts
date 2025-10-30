@@ -5,7 +5,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   root: '.',
-  outDir: 'build',
+  build: {
     outDir: 'build',
     sourcemap: true,
     emptyOutDir: true,

@@ -11,7 +11,7 @@ interface UserTypeSelectionProps {
 
 export function UserTypeSelection({ onSelect, onBack }: UserTypeSelectionProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-background animate-fade-in relative">
+    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 animate-fade-in relative" style={{ backgroundColor: 'rgb(245, 249, 233)' }}>
       {/* Logo in top left corner */}
       <div className="absolute top-4 sm:top-8 left-4 sm:left-8 md:left-12 flex items-center gap-3 z-10">
         <div className="w-24 h-24 sm:w-30 sm:h-30 md:w-36 md:h-36 flex items-center justify-center mt-[-9px]">
@@ -68,7 +68,7 @@ export function UserTypeSelection({ onSelect, onBack }: UserTypeSelectionProps) 
         </div>
       </div>
 
-      <Card className="w-full max-w-2xl space-y-6 sm:space-y-10 animate-slide-up shadow-lg border-border/30 bg-card/80 backdrop-blur-sm bg-[rgba(255,255,255,0)] p-6 sm:p-[40px] m-0">
+      <Card className="w-full max-w-2xl space-y-6 sm:space-y-10 animate-slide-up shadow-lg border-border/30 backdrop-blur-sm bg-transparent p-6 sm:p-[40px] m-0">
         <div className="text-center space-y-2 sm:space-y-4">
           <h2 className="text-2xl sm:text-4xl font-medium" style={{ fontFamily: 'Archivo', letterSpacing: '-0.07em', color: '#36453B' }}>
             Who are you?
@@ -82,7 +82,8 @@ export function UserTypeSelection({ onSelect, onBack }: UserTypeSelectionProps) 
           <Button
             onClick={() => onSelect('keeper')}
             variant="outline"
-            className="w-full h-auto min-h-[100px] sm:h-28 flex items-center justify-between p-4 sm:p-8 hover:bg-primary/5 border-2 hover:border-primary/30 transition-all duration-200 group text-[rgb(17,17,18)] bg-[rgba(236,240,226,0.4)]"
+            className="w-full h-auto min-h-[100px] sm:h-28 flex items-center justify-between p-4 sm:p-8 hover:bg-primary/5 border-2 hover:border-primary/30 transition-all duration-200 group bg-[rgba(236,240,226,0.4)]"
+            style={{ color: 'rgb(54, 69, 59)' }}
           >
             <div className="flex items-center space-x-3 sm:space-x-6">
               <div className="p-3 sm:p-4 bg-primary/10 rounded-2xl group-hover:bg-accent/70 transition-colors">
@@ -104,6 +105,7 @@ export function UserTypeSelection({ onSelect, onBack }: UserTypeSelectionProps) 
             onClick={() => onSelect('teller')}
             variant="outline"
             className="w-full h-auto min-h-[100px] sm:h-28 flex items-center justify-between p-4 sm:p-8 hover:bg-primary/5 border-2 hover:border-primary/30 transition-all duration-200 group bg-[rgba(236,240,226,0.4)]"
+            style={{ color: 'rgb(54, 69, 59)' }}
           >
             <div className="flex items-center space-x-3 sm:space-x-6">
               <div className="p-3 sm:p-4 bg-accent/50 rounded-2xl group-hover:bg-accent/70 transition-colors bg-[rgba(54,69,59,0.1)]">

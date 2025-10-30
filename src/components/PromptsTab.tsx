@@ -405,9 +405,9 @@ export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory,
           </div>
           <Button 
             onClick={() => handleSendPrompt(todaysPrompt.text)}
-            className="w-full bg-primary hover:bg-primary/90 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 h-11 font-semibold"
+            className="w-full border-0 shadow-lg hover:shadow-xl transition-all duration-200 h-11 font-semibold"
             size="lg"
-            style={{ fontFamily: 'Inter' }}
+            style={{ fontFamily: 'Inter', backgroundColor: 'rgb(54, 69, 59)', color: 'rgb(255, 255, 255)' }}
           >
             {isParent ? (
               <>
@@ -439,7 +439,7 @@ export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory,
           {displayedPrompts.slice(1, 9).map((prompt) => (
             <Card 
               key={prompt.id}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border bg-card/80 backdrop-blur-sm border-border/40 rounded-xl ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border bg-white/80 backdrop-blur-sm border-border/40 rounded-xl ${
                 selectedPrompt === prompt.id ? 'ring-2 ring-primary shadow-md scale-[1.01] bg-primary/5' : ''
               }`}
               onClick={() => setSelectedPrompt(selectedPrompt === prompt.id ? null : prompt.id)}

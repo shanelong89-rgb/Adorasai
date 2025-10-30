@@ -139,7 +139,7 @@ export function LoginScreen({ onSuccess, onSignUpClick, onBack }: LoginScreenPro
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-background animate-fade-in relative">
+    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 animate-fade-in relative" style={{ backgroundColor: 'rgb(245, 249, 233)' }}>
       {/* Timeline at the top */}
       <div className="absolute top-4 sm:top-8 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-[90vw] md:max-w-none md:w-auto">
         <div className="flex items-start justify-between md:gap-1">
@@ -184,7 +184,7 @@ export function LoginScreen({ onSuccess, onSignUpClick, onBack }: LoginScreenPro
         </button>
       </div>
 
-      <Card className="w-full max-w-2xl space-y-6 sm:space-y-8 animate-slide-up shadow-lg border-border/30 bg-card/80 backdrop-blur-sm bg-[rgba(255,255,255,0)] p-6 sm:p-[40px] m-0">
+      <Card className="w-full max-w-2xl space-y-6 sm:space-y-8 animate-slide-up shadow-lg border-border/30 backdrop-blur-sm bg-transparent p-6 sm:p-[40px] m-0">
         {/* Header matching SignUpInitialScreen */}
         <div className="text-center space-y-2 sm:space-y-4">
           <h2 className="text-2xl sm:text-4xl font-medium" style={{ fontFamily: 'Archivo', letterSpacing: '-0.07em', color: '#36453B' }}>
@@ -332,8 +332,8 @@ export function LoginScreen({ onSuccess, onSignUpClick, onBack }: LoginScreenPro
           {/* Submit Button */}
           <Button
             type="submit"
-            className="w-full h-12 sm:h-14 bg-primary hover:bg-primary/90 transition-colors text-base sm:text-lg"
-            style={{ fontFamily: 'Inter', letterSpacing: '-0.02em' }}
+            className="w-full h-12 sm:h-14 transition-colors text-base sm:text-lg"
+            style={{ fontFamily: 'Inter', letterSpacing: '-0.02em', backgroundColor: 'rgb(54, 69, 59)', color: 'rgb(255, 255, 255)' }}
             disabled={isLoading}
           >
             {isLoading ? (

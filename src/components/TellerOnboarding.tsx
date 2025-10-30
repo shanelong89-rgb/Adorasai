@@ -282,8 +282,8 @@ export function TellerOnboarding({ onComplete, onBack, isLoading = false, error 
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-background animate-fade-in">
-      <Card className="w-full max-w-lg p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8 animate-slide-up shadow-xl border border-border/30 bg-card/80 backdrop-blur-sm bg-[rgba(255,255,255,0)]">
+    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 animate-fade-in" style={{ backgroundColor: 'rgb(245, 249, 233)' }}>
+      <Card className="w-full max-w-lg p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8 animate-slide-up shadow-xl border border-border/30 backdrop-blur-sm bg-transparent">
         <div className="flex items-center justify-between">
           <Button onClick={handleBack} variant="ghost" size="sm" className="text-[rgb(54,69,59)] text-xs sm:text-sm">
             <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />

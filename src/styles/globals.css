@@ -7,11 +7,11 @@
 :root {
   --font-size: 16px;
   
-  /* Design system colors */
+  /* Design system colors - Build 719 palette */
   --white: rgb(255, 255, 255);
   --black: rgb(54, 69, 59);
   --gray-bg: rgb(241, 241, 241);
-  --adotas-bg: rgb(245, 249, 233);
+  --adotas-bg: rgb(245, 249, 233); /* Original background color #F5F9E9 */
   --adoras-green: rgb(54, 69, 59);
   --fonts-color: rgb(89, 101, 105);
   --adoras-back: rgb(193, 193, 165);
@@ -19,32 +19,31 @@
   --alt-dark-font: rgb(81, 87, 81);
   
   /* Semantic color mapping */
-  --background: var(--adotas-bg);
-  --foreground: var(--black);
-  --card: var(--white);
-  --card-foreground: var(--black);
-  --popover: var(--white);
-  --popover-foreground: var(--black);
+  --background: 75 57% 95%; /* HSL for rgb(245, 249, 233) #F5F9E9 */
+  --foreground: 152 13% 24%; /* HSL for rgb(54, 69, 59) #36453B */
+  --card: 0 0% 100%; /* HSL for white */
+  --card-foreground: 152 13% 24%; /* HSL for rgb(54, 69, 59) #36453B */
+  --popover: 0 0% 100%; /* HSL for white */
+  --popover-foreground: 152 13% 24%; /* HSL for rgb(54, 69, 59) #36453B */
   
-  /* Primary colors - using the sophisticated green */
-  --primary: var(--adoras-green);
-  --primary-foreground: var(--white);
-  --secondary: var(--gray-bg);
-  --secondary-foreground: var(--alt-dark-font);
+  /* Primary colors - using the sophisticated green #36453B */
+  --primary: 152 13% 24%; /* HSL for rgb(54, 69, 59) */
+  --primary-foreground: 0 0% 100%; /* HSL for white */
+  --secondary: 0 0% 95%; /* HSL for rgb(241, 241, 241) */
+  --secondary-foreground: 138 4% 33%; /* HSL for rgb(81, 87, 81) */
   
   /* Muted colors */
-  --muted: var(--type-color);
-  --muted-foreground: var(--fonts-color);
-  --accent: var(--adoras-back);
-  --accent-foreground: var(--adoras-green);
+  --muted: 78 29% 91%; /* HSL for rgb(236, 240, 226) */
+  --muted-foreground: 198 7% 37%; /* HSL for rgb(89, 101, 105) */
+  --accent: 60 14% 70%; /* HSL for rgb(193, 193, 165) */
+  --accent-foreground: 152 13% 24%; /* HSL for rgb(54, 69, 59) */
   
   /* System colors */
-  --destructive: #dc2626;
-  --destructive-foreground: var(--white);
-  --border: rgba(54, 69, 59, 0.1);
-  --input: var(--white);
-  --input-background: var(--white);
-  --switch-background: var(--adoras-back);
+  --destructive: 0 72% 51%; /* HSL for #dc2626 */
+  --destructive-foreground: 0 0% 100%; /* HSL for white */
+  --border: 152 13% 24%; /* Base green color for borders */
+  --input: 0 0% 100%; /* HSL for white */
+  --ring: 152 13% 24%; /* HSL for rgb(54, 69, 59) */
   
   /* Typography */
   --font-weight-medium: 500;
@@ -53,12 +52,11 @@
   --font-weight-bold: 700;
   --font-weight-black: 900;
   
-  /* Effects */
-  --ring: var(--adoras-green);
-  --shadow-sm: 0 1px 2px 0 rgb(54 69 59 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(54 69 59 / 0.1), 0 1px 2px -1px rgb(54 69 59 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(54 69 59 / 0.1), 0 2px 4px -2px rgb(54 69 59 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(54 69 59 / 0.1), 0 4px 6px -4px rgb(54 69 59 / 0.1);
+  /* Effects - Softer shadows for Build 719 */
+  --shadow-sm: 0 1px 2px 0 rgb(54 69 59 / 0.03);
+  --shadow: 0 1px 3px 0 rgb(54 69 59 / 0.06), 0 1px 2px -1px rgb(54 69 59 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(54 69 59 / 0.07), 0 2px 4px -2px rgb(54 69 59 / 0.06);
+  --shadow-lg: 0 8px 12px -3px rgb(54 69 59 / 0.08), 0 4px 6px -4px rgb(54 69 59 / 0.06);
   
   /* Charts */
   --chart-1: var(--adoras-green);
@@ -124,7 +122,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: rgb(245, 249, 233) !important;
+    color: rgb(54, 69, 59) !important;
   }
   
   /* iOS PWA Fullscreen Support */
@@ -211,18 +210,18 @@
     @apply transition-transform duration-200 ease-out hover:-translate-y-1;
   }
   
-  /* Better shadows */
+  /* Better shadows - Build 719 softer style */
   .shadow-soft {
-    box-shadow: 0 2px 8px rgba(54, 69, 59, 0.08);
+    box-shadow: 0 2px 8px rgba(54, 69, 59, 0.04);
   }
   
   .shadow-soft-lg {
-    box-shadow: 0 4px 16px rgba(54, 69, 59, 0.12);
+    box-shadow: 0 4px 16px rgba(54, 69, 59, 0.06);
   }
   
-  /* Refined borders */
+  /* Refined borders - Build 719 more subtle */
   .border-refined {
-    @apply border border-border/40;
+    @apply border border-border/30;
   }
   
   /* Better focus states */
@@ -296,6 +295,7 @@
       font-weight: var(--font-weight-semibold);
       line-height: 1.4em;
       letter-spacing: -0.04em;
+      color: rgb(54, 69, 59);
     }
 
     input, textarea, select {
@@ -315,6 +315,7 @@ html {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   width: 100%;
+  background-color: rgb(245, 249, 233) !important;
 }
 
 body {
@@ -362,7 +363,7 @@ body {
   }
 }
 
-/* Design system gradients */
+/* Design system gradients - Updated for Build 719 soft aesthetic */
 .gradient-background {
   background: linear-gradient(135deg, var(--adoras-green) 0%, var(--alt-dark-font) 100%);
 }
@@ -372,11 +373,12 @@ body {
 }
 
 .gradient-secondary {
-  background: linear-gradient(135deg, var(--adotas-bg) 0%, var(--type-color) 100%);
+  background: linear-gradient(135deg, var(--adotas-bg) 0%, rgba(236, 240, 226, 0.95) 100%);
 }
 
 .gradient-accent {
-  background: linear-gradient(135deg, var(--adoras-back) 0%, var(--type-color) 100%);
+  /* Soft beige/tan gradient for Today's Prompt card - matches Build 719 */
+  background: linear-gradient(135deg, rgba(205, 202, 180, 0.85) 0%, rgba(215, 212, 195, 0.75) 100%);
 }
 
 /* Glass morphism effect */
@@ -594,26 +596,38 @@ input[type="datetime-local"]::-webkit-datetime-edit-ampm-field:focus {
     font-size: 0.8125rem;
     padding: 5px 10px;
     padding-right: 28px;
-    /* Improved Container and Spacing System */
+  }
+}
+
+/* Improved Container and Spacing System */
 @layer components {
+  /* Main container with proper max-width and padding */
   .app-container {
     @apply max-w-2xl mx-auto px-4 sm:px-6;
   }
+  
+  /* Content spacing utilities */
   .content-spacing {
     @apply space-y-4 sm:space-y-6;
   }
+  
   .content-padding {
     @apply px-4 py-6 sm:px-6 sm:py-8;
   }
+  
   .section-spacing {
     @apply mb-6 sm:mb-8;
   }
+  
+  /* Card improvements */
   .card-refined {
     @apply rounded-xl border border-border/50 bg-card shadow-sm;
   }
+  
   .card-padding {
     @apply p-4 sm:p-6;
   }
+  
   .card-header-spacing {
     @apply mb-3 sm:mb-4;
   }
@@ -621,24 +635,31 @@ input[type="datetime-local"]::-webkit-datetime-edit-ampm-field:focus {
 
 /* Enhanced Visual Polish */
 @layer utilities {
+  /* Smooth hover transitions */
   .hover-lift {
     @apply transition-transform duration-200 ease-out hover:-translate-y-0.5;
   }
+  
   .hover-lift-lg {
     @apply transition-transform duration-200 ease-out hover:-translate-y-1;
   }
+  
+  /* Better shadows */
   .shadow-soft {
     box-shadow: 0 2px 8px rgba(54, 69, 59, 0.08);
   }
+  
   .shadow-soft-lg {
     box-shadow: 0 4px 16px rgba(54, 69, 59, 0.12);
   }
+  
+  /* Refined borders */
   .border-refined {
     @apply border border-border/40;
   }
+  
+  /* Better focus states */
   .focus-refined {
     @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary;
-  }
-}
   }
 }

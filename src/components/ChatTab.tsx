@@ -2262,7 +2262,7 @@ export function ChatTab({
   }
 
   return (
-    <div className="flex flex-col h-full relative bg-background">
+    <div className="flex flex-col h-full relative" style={{ backgroundColor: 'rgb(245, 249, 233)' }}>
       {/* Hidden file inputs - always in DOM so they can be triggered from anywhere */}
       <input
         ref={fileInputRef}
@@ -2482,7 +2482,7 @@ export function ChatTab({
       </ScrollArea>
 
       {/* Input Area - Fixed to bottom of screen */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t shadow-lg" style={{ backgroundColor: 'rgb(245, 249, 233)' }}>
         {/* Recording Indicator */}
         {isRecording && (
           <div className="px-4 py-2 bg-red-50 border-b border-red-200">

@@ -399,9 +399,19 @@ export async function getConnectionMemories(params: {
     const memories = await Promise.all(
       memoryIds.map(async (id) => {
         try {
-          return await kv.get<Memory>(Keys.memory(id));
+          const memory = await kv.get<Memory>(Keys.memory(id));
+          return memory;
         } catch (error) {
-          console.error(`Error fetching memory ${id}:`, error);
+          // Handle Supabase/Cloudflare errors gracefully
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          // Check if this is a Cloudflare 500 error (HTML response)
+          if (errorMessage.includes('<!DOCTYPE html>') || errorMessage.includes('Internal server error')) {
+            console.error(`❌ Supabase database error fetching memory ${id} - Database may be temporarily unavailable`);
+          } else {
+            console.error(`❌ Error fetching memory ${id}:`, errorMessage.substring(0, 200));
+          }
+          
           return null;
         }
       })
@@ -411,6 +421,12 @@ export async function getConnectionMemories(params: {
     const validMemories = memories
       .filter((m): m is Memory => m !== null && m !== undefined)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    // Log warning if some memories failed to load
+    const failedCount = memoryIds.length - validMemories.length;
+    if (failedCount > 0) {
+      console.warn(`⚠️ Failed to load ${failedCount} out of ${memoryIds.length} memories for connection ${params.connectionId}. This may be due to temporary database issues.`);
+    }
 
     // Helper to extract file path from URL (handles both signed URLs and regular paths)
     const extractFilePath = (url: string): string | null => {

@@ -500,7 +500,7 @@ export function Dashboard({
   return (
     <>
       {/* Extended background container that goes behind notch */}
-      <div className="fixed inset-0 -top-20 bg-background -z-10"></div>
+      <div className="fixed inset-0 -top-20 -z-10" style={{ backgroundColor: 'rgb(245, 249, 233)' }}></div>
       
       <div className="min-h-screen bg-transparent animate-fade-in" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {/* Safari Install Banner - Shows on iOS Safari when not installed */}
@@ -553,7 +553,7 @@ export function Dashboard({
                     <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="bg-[#36453B] flex flex-col py-4 sm:py-6">
+                <SheetContent className="bg-[#36453B] flex flex-col py-4 sm:py-6 border-l-0">
                   {/* Compressed Header */}
                   <SheetHeader className="flex-shrink-0 px-4 sm:px-6 mb-3 sm:mb-4">
                     <SheetTitle className="text-white text-base sm:text-lg" style={{ fontFamily: 'Archivo', letterSpacing: '-0.05em' }}>Menu</SheetTitle>
@@ -565,7 +565,7 @@ export function Dashboard({
                   {/* Compressed content - no scrolling, fits on screen */}
                   <div className="flex-1 px-4 sm:px-6 space-y-3 sm:space-y-4">
                     {/* User Account Section */}
-                    <div className="pb-2 sm:pb-3 border-b border-[#ECF0E2]/20">
+                    <div className="pb-2 sm:pb-3 border-b" style={{ borderColor: 'rgba(54, 69, 59, 0.3)' }}>
                       <button
                         onClick={() => {
                           setShowAccountSettings(true);
@@ -641,7 +641,7 @@ export function Dashboard({
                                   <div className="flex items-center space-x-1.5 min-w-0 flex-1">
                                     <p className="font-medium text-white text-sm sm:text-base truncate" style={{ fontFamily: 'Archivo' }}>{storyteller.name}</p>
                                     {activeStorytellerId === storyteller.id && (
-                                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+                                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'rgb(193, 193, 165)' }} />
                                     )}
                                   </div>
                                   {getUnreadCountForConnection(storyteller.id) > 0 && (
@@ -661,7 +661,7 @@ export function Dashboard({
                     )}
                     
                     {userType === 'teller' && legacyKeepers.length > 0 && (
-                      <div className="space-y-1.5 sm:space-y-2 pb-2 sm:pb-3 border-b border-[#ECF0E2]/20">
+                      <div className="space-y-1.5 sm:space-y-2 pb-2 sm:pb-3 border-b" style={{ borderColor: 'rgba(54, 69, 59, 0.3)' }}>
                         <h3 className="text-xs sm:text-sm font-medium text-[#ECF0E2] px-1" style={{ fontFamily: 'Inter' }}>
                           Connected Legacy Keepers
                         </h3>
@@ -707,7 +707,7 @@ export function Dashboard({
                                   <div className="flex items-center space-x-1.5 min-w-0 flex-1">
                                     <p className="font-medium text-white text-sm sm:text-base truncate" style={{ fontFamily: 'Archivo' }}>{legacyKeeper.name}</p>
                                     {activeLegacyKeeperId === legacyKeeper.id && (
-                                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+                                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'rgb(193, 193, 165)' }} />
                                     )}
                                   </div>
                                   {getUnreadCountForConnection(legacyKeeper.id) > 0 && (
@@ -867,9 +867,12 @@ export function Dashboard({
               <button
                 onClick={() => handleTabChange('prompts')}
                 className={`flex items-center justify-center gap-2 rounded-lg transition-all duration-200 py-2.5 sm:py-3 text-sm font-semibold ${
-                  activeTab === 'prompts' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted/50'
+                  activeTab === 'prompts' ? 'shadow-sm' : 'hover:bg-muted/50'
                 }`}
-                style={{ fontFamily: 'Inter' }}
+                style={{ 
+                  fontFamily: 'Inter',
+                  ...(activeTab === 'prompts' ? { backgroundColor: 'rgb(54, 69, 59)', color: 'rgb(255, 255, 255)' } : {})
+                }}
               >
                 <Zap className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
                 <span className="hidden sm:inline">{t('prompts')}</span>
@@ -877,9 +880,12 @@ export function Dashboard({
               <button
                 onClick={() => handleTabChange('chat')}
                 className={`flex items-center justify-center gap-2 rounded-lg transition-all duration-200 py-2.5 sm:py-3 text-sm font-semibold relative ${
-                  activeTab === 'chat' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted/50'
+                  activeTab === 'chat' ? 'shadow-sm' : 'hover:bg-muted/50'
                 }`}
-                style={{ fontFamily: 'Inter' }}
+                style={{ 
+                  fontFamily: 'Inter',
+                  ...(activeTab === 'chat' ? { backgroundColor: 'rgb(54, 69, 59)', color: 'rgb(255, 255, 255)' } : {})
+                }}
               >
                 <MessageCircle className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
                 <span className="hidden sm:inline">{t('chat')}</span>
@@ -892,9 +898,12 @@ export function Dashboard({
               <button
                 onClick={() => handleTabChange('media')}
                 className={`flex items-center justify-center gap-2 rounded-lg transition-all duration-200 py-2.5 sm:py-3 text-sm font-semibold ${
-                  activeTab === 'media' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted/50'
+                  activeTab === 'media' ? 'shadow-sm' : 'hover:bg-muted/50'
                 }`}
-                style={{ fontFamily: 'Inter' }}
+                style={{ 
+                  fontFamily: 'Inter',
+                  ...(activeTab === 'media' ? { backgroundColor: 'rgb(54, 69, 59)', color: 'rgb(255, 255, 255)' } : {})
+                }}
               >
                 <Image className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
                 <span className="hidden sm:inline">{t('mediaLibrary')}</span>
