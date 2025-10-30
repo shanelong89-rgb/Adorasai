@@ -1,37 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { copyFileSync, existsSync, mkdirSync } from 'fs';
 
 // Vercel build configuration
 export default defineConfig({
   plugins: [
     react(),
-    // Ensure service worker is copied to build output
-    {
-      name: 'copy-sw',
-      closeBundle() {
-        const swSource = path.resolve(__dirname, 'public/sw.js');
-        const swDest = path.resolve(__dirname, 'build/sw.js');
-        
-        if (existsSync(swSource)) {
-          console.log('📦 Copying service worker to build output...');
-          try {
-            // Ensure build directory exists
-            const buildDir = path.resolve(__dirname, 'build');
-            if (!existsSync(buildDir)) {
-              mkdirSync(buildDir, { recursive: true });
-            }
-            copyFileSync(swSource, swDest);
-            console.log('✅ Service worker copied successfully');
-          } catch (error) {
-            console.error('❌ Failed to copy service worker:', error);
-          }
-        } else {
-          console.warn('⚠️ Service worker source not found at:', swSource);
-        }
-      }
-    }
   ],
   root: '.',
   build: {
