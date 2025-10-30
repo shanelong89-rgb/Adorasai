@@ -4,9 +4,7 @@ import path from 'path';
 
 // Vercel build configuration
 export default defineConfig({
-  plugins: [
-    react(),
-  ],
+  plugins: [react()],
   root: './src',
   build: {
     outDir: '../build',
