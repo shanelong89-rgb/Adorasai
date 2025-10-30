@@ -1,16 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  root: '.',
   build: {
     outDir: 'dist',
     sourcemap: true,
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      }
+    }
   },
   publicDir: 'public',
   server: {
     port: 3000,
   },
+  base: '/',
   resolve: {
     alias: {
       // Map motion/react to framer-motion for compatibility

@@ -6611,6 +6611,7 @@
   }
 }
 
+
 :root {
   --font-size: 16px;
   --white: #fff;
@@ -6704,7 +6705,6 @@
   --sidebar-border: #c1c1a533;
   --sidebar-ring: var(--adoras-back);
 }
-
 
 html {
   font-size: var(--font-size);

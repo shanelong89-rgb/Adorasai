@@ -83,7 +83,7 @@ export const translations = {
     birthday: 'Birthday',
     relationship: 'Relationship',
     bio: 'Bio',
-    photo: 'Photo',
+    profilePhoto: 'Photo',
     appLanguage: 'App Language',
     
     // Languages
@@ -230,7 +230,7 @@ export const translations = {
     birthday: 'Cumpleaños',
     relationship: 'Relación',
     bio: 'Biografía',
-    photo: 'Foto',
+    profilePhoto: 'Foto',
     appLanguage: 'Idioma',
     
     // Languages
@@ -377,7 +377,7 @@ export const translations = {
     birthday: 'Anniversaire',
     relationship: 'Relation',
     bio: 'Biographie',
-    photo: 'Photo',
+    profilePhoto: 'Photo',
     appLanguage: 'Langue',
     
     // Languages
@@ -524,7 +524,7 @@ export const translations = {
     birthday: '生日',
     relationship: '關係',
     bio: '簡介',
-    photo: '照片',
+    profilePhoto: '照片',
     appLanguage: '語言',
     
     // Languages
@@ -671,7 +671,7 @@ export const translations = {
     birthday: '생일',
     relationship: '관계',
     bio: '소개',
-    photo: '사진',
+    profilePhoto: '사진',
     appLanguage: '언어',
     
     // Languages
@@ -818,7 +818,7 @@ export const translations = {
     birthday: '誕生日',
     relationship: '関係',
     bio: '自己紹介',
-    photo: '写真',
+    profilePhoto: '写真',
     appLanguage: '言語',
     
     // Languages
