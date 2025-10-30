@@ -4,7 +4,6 @@
  * Designed to match UserTypeSelection layout for seamless transition
  */
 
-import image_765d34e9fbc721b15c88ad53d2e5f39e8955bf52 from 'figma:asset/765d34e9fbc721b15c88ad53d2e5f39e8955bf52.png';
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
