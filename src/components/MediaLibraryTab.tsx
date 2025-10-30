@@ -1208,9 +1208,9 @@ export function MediaLibraryTab({ memories, userType, userAge = 20, partnerBirth
   };
 
   return (
-    <div className="space-y-4 px-2 sm:px-4 max-w-4xl mx-auto overflow-x-hidden">
+    <div className="space-y-5 sm:space-y-6 max-w-3xl mx-auto">
       {/* Search and Filters */}
-      <div className="space-y-4">
+      <div className="space-y-4 sm:space-y-5">
         <div className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
