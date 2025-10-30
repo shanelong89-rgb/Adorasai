@@ -502,7 +502,7 @@ export function Dashboard({
       {/* Extended background container that goes behind notch */}
       <div className="fixed inset-0 -top-20 bg-background -z-10"></div>
       
-      <div className="min-h-screen bg-transparent animate-fade-in max-w-[1400px] mx-auto" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="min-h-screen bg-transparent animate-fade-in" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {/* Safari Install Banner - Shows on iOS Safari when not installed */}
         <SafariInstallBanner />
         
@@ -515,7 +515,7 @@ export function Dashboard({
         >
           {/* Modern Header */}
           <div className="bg-card/80 backdrop-blur-md border-b border-border/20">
-          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-[20px]">
+          <div className="flex items-center justify-between px-5 sm:px-8 md:px-10 lg:px-12 xl:px-16 py-4 sm:py-5 max-w-4xl mx-auto">
             <div className="flex items-center space-x-3 sm:space-x-5 min-w-0 flex-1">
               <div className="relative flex-shrink-0">
                 <Avatar className="w-12 h-12 sm:w-16 sm:h-16 ring-2 sm:ring-3 ring-primary/15 shadow-md">
@@ -863,41 +863,41 @@ export function Dashboard({
 
           {/* Tab Navigation Bar */}
           <div className="bg-card/80 backdrop-blur-md border-b border-border/20">
-            <div className="grid w-full grid-cols-3 p-1 sm:p-1.5 h-11 sm:h-12">
+            <div className="grid grid-cols-3 gap-1.5 p-2 sm:p-2.5 max-w-4xl mx-auto px-5 sm:px-8 md:px-10 lg:px-12 xl:px-16">
               <button
                 onClick={() => handleTabChange('prompts')}
-                className={`flex items-center justify-center space-x-1 sm:space-x-2 rounded-xl transition-all duration-200 h-8 sm:h-9 text-xs sm:text-sm font-medium px-2 ${
-                  activeTab === 'prompts' ? 'bg-primary text-primary-foreground' : ''
+                className={`flex items-center justify-center gap-2 rounded-lg transition-all duration-200 py-2.5 sm:py-3 text-sm font-semibold ${
+                  activeTab === 'prompts' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted/50'
                 }`}
                 style={{ fontFamily: 'Inter' }}
               >
-                <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">{t('prompts')}</span>
+                <Zap className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden sm:inline">{t('prompts')}</span>
               </button>
               <button
                 onClick={() => handleTabChange('chat')}
-                className={`flex items-center justify-center space-x-1 sm:space-x-2 rounded-xl transition-all duration-200 h-8 sm:h-9 text-xs sm:text-sm font-medium px-2 relative ${
-                  activeTab === 'chat' ? 'bg-primary text-primary-foreground' : ''
+                className={`flex items-center justify-center gap-2 rounded-lg transition-all duration-200 py-2.5 sm:py-3 text-sm font-semibold relative ${
+                  activeTab === 'chat' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted/50'
                 }`}
                 style={{ fontFamily: 'Inter' }}
               >
-                <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">{t('chat')}</span>
+                <MessageCircle className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden sm:inline">{t('chat')}</span>
                 {unreadMessageCount > 0 && activeTab !== 'chat' && (
-                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-semibold bg-red-500 text-white rounded-full border-2 border-background animate-pulse">
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full border-2 border-background animate-pulse">
                     {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => handleTabChange('media')}
-                className={`flex items-center justify-center space-x-1 sm:space-x-2 rounded-xl transition-all duration-200 h-8 sm:h-9 text-xs sm:text-sm font-medium px-2 ${
-                  activeTab === 'media' ? 'bg-primary text-primary-foreground' : ''
+                className={`flex items-center justify-center gap-2 rounded-lg transition-all duration-200 py-2.5 sm:py-3 text-sm font-semibold ${
+                  activeTab === 'media' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted/50'
                 }`}
                 style={{ fontFamily: 'Inter' }}
               >
-                <Image className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">{t('mediaLibrary')}</span>
+                <Image className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden sm:inline">{t('mediaLibrary')}</span>
               </button>
             </div>
           </div>
@@ -907,7 +907,7 @@ export function Dashboard({
         {/* Tab Content */}
         <div className="flex-1 flex flex-col">
           {activeTab === 'prompts' && (
-            <div className="m-0 pt-0 px-2 pb-3 sm:px-4 sm:pb-4 flex-1">
+            <div className="pt-4 px-4 pb-6 sm:pt-6 sm:px-6 sm:pb-8 flex-1">
               <PromptsTab 
                 userType={userType}
                 partnerName={partnerProfile?.name}
@@ -943,7 +943,7 @@ export function Dashboard({
           )}
           
           {activeTab === 'media' && (
-            <div className="m-0 pt-4 px-2 pb-3 sm:px-4 sm:pb-4 flex-1">
+            <div className="pt-4 px-4 pb-6 sm:pt-6 sm:px-6 sm:pb-8 flex-1">
               <MediaLibraryTab 
                 memories={validatedMemories}
                 userType={userType}
