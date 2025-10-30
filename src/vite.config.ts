@@ -7,9 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
   ],
-  root: '.',
+  root: './src'
   build: {
-    outDir: 'build',
+    outDir: '../build',
     sourcemap: true,
     emptyOutDir: true,
     rollupOptions: {
