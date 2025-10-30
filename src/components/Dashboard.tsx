@@ -23,7 +23,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Menu, Zap, MessageCircle, Image, User, Check, UserPlus, Bell, Shield, Database, HelpCircle, LogOut, List, Users } from 'lucide-react';
-import adorasLogo from 'figma:asset/c0ceb92d68e5b47f201fa6ace32aa529988746ee.png';
 import { useAuth } from '../utils/api/AuthContext';
 import type { PresenceState } from '../utils/realtimeSync';
 import { useTranslation } from '../utils/i18n';
