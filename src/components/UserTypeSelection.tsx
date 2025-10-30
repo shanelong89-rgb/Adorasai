@@ -1,4 +1,3 @@
-import image_765d34e9fbc721b15c88ad53d2e5f39e8955bf52 from 'figma:asset/765d34e9fbc721b15c88ad53d2e5f39e8955bf52.png';
 import React from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -15,12 +14,12 @@ export function UserTypeSelection({ onSelect, onBack }: UserTypeSelectionProps) 
     <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-background animate-fade-in relative">
       {/* Logo in top left corner */}
       <div className="absolute top-4 sm:top-8 left-4 sm:left-8 md:left-12 flex items-center gap-3 z-10">
-        <img 
-          src={image_765d34e9fbc721b15c88ad53d2e5f39e8955bf52} 
-          alt="Adoras" 
-          className="w-24 h-24 sm:w-30 sm:h-30 md:w-36 md:h-36 object-contain mt-[-9px] bg-transparent"
-        />
-
+        <div className="w-24 h-24 sm:w-30 sm:h-30 md:w-36 md:h-36 flex items-center justify-center mt-[-9px]">
+          <svg viewBox="0 0 100 100" className="w-full h-full">
+            <circle cx="50" cy="50" r="45" fill="rgb(245, 249, 233)" opacity="0.9"/>
+            <text x="50" y="60" fontSize="36" fontWeight="700" fill="rgb(54, 69, 59)" textAnchor="middle" fontFamily="Archivo">A</text>
+          </svg>
+        </div>
       </div>
 
       {/* Back Button - positioned under logo */}
