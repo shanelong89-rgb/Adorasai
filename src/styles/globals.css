@@ -1,10 +1,8 @@
-css
 @import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400;1,500;1,600;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@custom-variant dark (&:is(.dark *));
 
 :root {
   --font-size: 16px;
@@ -12,568 +10,158 @@ css
   /* Design system colors */
   --white: rgb(255, 255, 255);
   --black: rgb(54, 69, 59);
-  --gray-bg: rgb(241, 241, 241);
-  --adotas-bg: rgb(245, 249, 233);
   --adoras-green: rgb(54, 69, 59);
-  --fonts-color: rgb(89, 101, 105);
-  --adoras-back: rgb(193, 193, 165);
-  --type-color: rgb(236, 240, 226);
-  --alt-dark-font: rgb(81, 87, 81);
+  --adoras-back: rgb(245, 249, 233);
+  --adoras-accent: rgb(193, 193, 165);
+  --adoras-dark-accent: rgb(139, 139, 122);
   
-  /* Semantic color mapping */
-  --background: var(--adotas-bg);
-  --foreground: var(--black);
+  /* Semantic colors */
+  --background: var(--adoras-back);
+  --foreground: var(--adoras-green);
   --card: var(--white);
-  --card-foreground: var(--black);
+  --card-foreground: var(--adoras-green);
   --popover: var(--white);
-  --popover-foreground: var(--black);
-  
-  /* Primary colors - using the sophisticated green */
+  --popover-foreground: var(--adoras-green);
   --primary: var(--adoras-green);
   --primary-foreground: var(--white);
-  --secondary: var(--gray-bg);
-  --secondary-foreground: var(--alt-dark-font);
-  
-  /* Muted colors */
-  --muted: var(--type-color);
-  --muted-foreground: var(--fonts-color);
-  --accent: var(--adoras-back);
+  --secondary: var(--adoras-accent);
+  --secondary-foreground: var(--adoras-green);
+  --muted: rgb(245, 245, 240);
+  --muted-foreground: rgb(100, 100, 90);
+  --accent: var(--adoras-accent);
   --accent-foreground: var(--adoras-green);
-  
-  /* System colors */
-  --destructive: #dc2626;
+  --destructive: rgb(220, 38, 38);
   --destructive-foreground: var(--white);
-  --border: rgba(54, 69, 59, 0.1);
-  --input: var(--white);
+  --border: rgba(193, 193, 165, 0.3);
+  --input: rgba(193, 193, 165, 0.3);
   --input-background: var(--white);
-  --switch-background: var(--adoras-back);
+  --switch-background: rgb(229, 229, 220);
+  --ring: var(--adoras-green);
+  --radius: 0.75rem;
   
   /* Typography */
+  --type-color: var(--adoras-green);
+  --font-weight-regular: 400;
   --font-weight-medium: 500;
-  --font-weight-normal: 400;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  --font-weight-black: 900;
   
-  /* Effects */
-  --ring: var(--adoras-green);
-  --shadow-sm: 0 1px 2px 0 rgb(54 69 59 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(54 69 59 / 0.1), 0 1px 2px -1px rgb(54 69 59 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(54 69 59 / 0.1), 0 2px 4px -2px rgb(54 69 59 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(54 69 59 / 0.1), 0 4px 6px -4px rgb(54 69 59 / 0.1);
-  
-  /* Charts */
-  --chart-1: var(--adoras-green);
-  --chart-2: var(--adoras-back);
-  --chart-3: var(--fonts-color);
-  --chart-4: var(--alt-dark-font);
-  --chart-5: var(--type-color);
-  
-  /* Border radius */
-  --radius: 0.5rem;
+  /* Chart colors */
+  --chart-1: rgb(54, 69, 59);
+  --chart-2: rgb(193, 193, 165);
+  --chart-3: rgb(139, 139, 122);
+  --chart-4: rgb(245, 249, 233);
+  --chart-5: rgb(100, 100, 90);
   
   /* Sidebar */
-  --sidebar: var(--white);
-  --sidebar-foreground: var(--black);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--type-color);
   --sidebar-primary: var(--adoras-green);
   --sidebar-primary-foreground: var(--white);
-  --sidebar-accent: var(--type-color);
-  --sidebar-accent-foreground: var(--adoras-green);
-  --sidebar-border: rgba(54, 69, 59, 0.1);
-  --sidebar-ring: var(--adoras-green);
-}
-
-.dark {
-  --background: var(--black);
-  --foreground: var(--white);
-  --card: rgba(54, 69, 59, 0.95);
-  --card-foreground: var(--white);
-  --popover: rgba(54, 69, 59, 0.95);
-  --popover-foreground: var(--white);
-  --primary: var(--adoras-back);
-  --primary-foreground: var(--adoras-green);
-  --secondary: rgba(54, 69, 59, 0.3);
-  --secondary-foreground: var(--type-color);
-  --muted: rgba(54, 69, 59, 0.2);
-  --muted-foreground: var(--adoras-back);
-  --accent: rgba(54, 69, 59, 0.4);
-  --accent-foreground: var(--type-color);
-  --destructive: #dc2626;
-  --destructive-foreground: var(--white);
-  --border: rgba(193, 193, 165, 0.2);
-  --input: rgba(54, 69, 59, 0.95);
-  --input-background: rgba(54, 69, 59, 0.95);
-  --switch-background: rgba(193, 193, 165, 0.3);
-  --ring: var(--adoras-back);
-  --chart-1: var(--adoras-back);
-  --chart-2: var(--type-color);
-  --chart-3: var(--adoras-green);
-  --chart-4: var(--fonts-color);
-  --chart-5: var(--alt-dark-font);
-  --sidebar: rgba(54, 69, 59, 0.95);
-  --sidebar-foreground: var(--white);
-  --sidebar-primary: var(--adoras-back);
-  --sidebar-primary-foreground: var(--adoras-green);
-  --sidebar-accent: rgba(54, 69, 59, 0.3);
+  --sidebar-accent: var(--adoras-accent);
   --sidebar-accent-foreground: var(--type-color);
   --sidebar-border: rgba(193, 193, 165, 0.2);
   --sidebar-ring: var(--adoras-back);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-input-background: var(--input-background);
-  --color-switch-background: var(--switch-background);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  
-  /* Custom breakpoint for extra small screens (iPhone 13 mini and below) */
-  --breakpoint-xs: 390px;
-}
-
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+{
+    @apply border-border;
   }
-
+  
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Archivo', sans-serif;
+    color: var(--type-color);
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2em;
+    letter-spacing: -0.08em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1.3em;
+    letter-spacing: -0.06em;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4em;
+    letter-spacing: -0.05em;
+  }
+
+  h4 {
+    font-size: 1.125rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4em;
+    letter-spacing: -0.04em;
+  }
+
+  h5 {
+    font-size: 1rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.5em;
+    letter-spacing: -0.03em;
+  }
+
+  h6 {
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.5em;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4em;
+    letter-spacing: -0.05em;
+    color: var(--muted-foreground);
+  }
+
+  label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4em;
+    letter-spacing: -0.04em;
+    color: var(--type-color);
+  }
+
+  button {
+    font-family: 'Inter', sans-serif;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: -0.03em;
+  }
+
+  input, textarea {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5em;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
   }
   
-  /* iOS PWA Fullscreen Support */
-  html, body {
-    height: 100%;
-    width: 100%;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    
-    /* Prevent pull-to-refresh and overscroll on iOS PWA */
-    overscroll-behavior-y: contain;
-  }
-  
-  /* Support for iOS safe areas (notch, home indicator) */
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-  
-  /* Ensure root element fills viewport in standalone mode */
-  #root {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-  }
-  
-  /* iOS standalone mode specific styles */
-  @media all and (display-mode: standalone) {
-    body {
-      /* Prevent any browser-like behaviors */
-      -webkit-touch-callout: none;
-    }
-    
-    html {
-      /* Ensure proper height calculation on iOS */
-      height: -webkit-fill-available;
-    }
-  }
-}
-
-/**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
- */
-@layer base {
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    h1 {
-      font-family: 'Archivo', sans-serif;
-      font-size: 3.5rem;
-      font-weight: var(--font-weight-medium);
-      line-height: 0.96em;
-      letter-spacing: -0.07em;
-      color: var(--foreground);
-    }
-
-    h2 {
-      font-family: 'Archivo', sans-serif;
-      font-size: 2.375rem;
-      font-weight: var(--font-weight-medium);
-      line-height: 1.1em;
-      letter-spacing: -0.07em;
-      color: var(--foreground);
-    }
-
-    h3 {
-      font-family: 'Archivo', sans-serif;
-      font-size: 1.875rem;
-      font-weight: var(--font-weight-medium);
-      line-height: 1.1em;
-      letter-spacing: -0.05em;
-      color: var(--foreground);
-    }
-
-    h4 {
-      font-family: 'Archivo', sans-serif;
-      font-size: 1.375rem;
-      font-weight: var(--font-weight-semibold);
-      line-height: 1.4em;
-      letter-spacing: -0.05em;
-      color: var(--foreground);
-    }
-
-    p {
-      font-family: 'Inter', sans-serif;
-      font-size: 1rem;
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4em;
-      letter-spacing: -0.05em;
-      color: var(--muted-foreground);
-    }
-
-    label {
-      font-family: 'Inter', sans-serif;
-      font-size: 0.875rem;
-      font-weight: var(--font-weight-semibold);
-      line-height: 1.4em;
-      letter-spacing: -0.04em;
-      color: var(--foreground);
-    }
-
-    button {
-      font-family: 'Inter', sans-serif;
-      font-size: 0.875rem;
-      font-weight: var(--font-weight-semibold);
-      line-height: 1.4em;
-      letter-spacing: -0.04em;
-    }
-
-    input, textarea, select {
-      font-family: 'Inter', sans-serif;
-      font-size: 1rem;
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4em;
-      letter-spacing: -0.05em;
-    }
-  }
-}
-
-html {
-  font-size: var(--font-size);
-  font-family: 'Archivo', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  width: 100%;
-}
-
-body {
-  overflow-x: hidden;
-  width: 100%;
-  position: relative;
-}
-
-/* Prevent zoom on iOS when focusing inputs */
-@supports (-webkit-touch-callout: none) {
-  input, textarea, select {
-    font-size: 16px !important;
-  }
-}
-
-/* Ensure aspect-square works properly on mobile */
-.aspect-square {
-  aspect-ratio: 1 / 1;
-  width: 100%;
-  min-height: 0;
-  position: relative;
-}
-
-/* Ensure images inside aspect-square containers display properly */
-.aspect-square img,
-.aspect-square video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain;
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-/* Mobile-specific fixes for media display */
-@media (max-width: 640px) {
-  .aspect-square {
-    min-height: 150px;
-    height: auto;
-  }
-  
-  /* Ensure grid items have proper height */
-  .grid.grid-cols-2 > * {
-    min-height: 0;
-  }
-}
-
-/* Design system gradients */
-.gradient-background {
-  background: linear-gradient(135deg, var(--adoras-green) 0%, var(--alt-dark-font) 100%);
-}
-
-.gradient-primary {
-  background: linear-gradient(135deg, var(--adoras-green) 0%, var(--fonts-color) 100%);
-}
-
-.gradient-secondary {
-  background: linear-gradient(135deg, var(--adotas-bg) 0%, var(--type-color) 100%);
-}
-
-.gradient-accent {
-  background: linear-gradient(135deg, var(--adoras-back) 0%, var(--type-color) 100%);
-}
-
-/* Glass morphism effect */
-.glass {
-  backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.dark .glass {
-  background: rgba(26, 26, 26, 0.8);
-  border: 1px solid rgba(38, 38, 38, 0.2);
-}
-
-/* Smooth animations */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.6s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.4s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { 
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from { 
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to { 
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Custom datetime-local input styling to match Adoras theme */
-input[type="datetime-local"] {
-  color-scheme: light;
-}
-
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(31%) sepia(15%) saturate(787%) hue-rotate(103deg) brightness(95%) contrast(91%);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-  background-color: rgba(54, 69, 59, 0.1);
-}
-
-/* WebKit datetime popup styling */
-input[type="datetime-local"]::-webkit-datetime-edit {
-  padding: 0;
-  color: var(--foreground);
-}
-
-input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
-  padding: 0;
-}
-
-input[type="datetime-local"]::-webkit-datetime-edit-text {
-  color: var(--muted-foreground);
-  padding: 0 2px;
-}
-
-input[type="datetime-local"]::-webkit-datetime-edit-month-field,
-input[type="datetime-local"]::-webkit-datetime-edit-day-field,
-input[type="datetime-local"]::-webkit-datetime-edit-year-field,
-input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
-input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
-input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
-  color: var(--adoras-green);
-  padding: 2px 4px;
-  border-radius: 4px;
-  background-color: transparent;
-  transition: background-color 0.2s ease;
-}
-
-input[type="datetime-local"]::-webkit-datetime-edit-month-field:focus,
-input[type="datetime-local"]::-webkit-datetime-edit-day-field:focus,
-input[type="datetime-local"]::-webkit-datetime-edit-year-field:focus,
-input[type="datetime-local"]::-webkit-datetime-edit-hour-field:focus,
-input[type="datetime-local"]::-webkit-datetime-edit-minute-field:focus,
-input[type="datetime-local"]::-webkit-datetime-edit-ampm-field:focus {
-  background-color: rgba(54, 69, 59, 0.1);
-  color: var(--adoras-green);
-  outline: none;
-}
-
-/* Ensure the calendar popup uses the app's color scheme (limited browser support) */
-@supports selector(::-webkit-calendar-picker-indicator) {
-  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    background-color: transparent;
-  }
-}
-
-/* Calendar component styling improvements */
-.rdp {
-  --rdp-cell-size: 36px;
-  --rdp-accent-color: var(--adoras-green);
-  --rdp-background-color: var(--white);
-  margin: 0;
-}
-
-.rdp-months {
-  justify-content: center;
-}
-
-.rdp-month {
-  width: 100%;
-  max-width: 280px;
-}
-
-.rdp-caption {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding-top: 0.25rem;
-  padding-bottom: 0.75rem;
-  margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
-}
-
-/* Hide caption label when using dropdowns to avoid duplication */
-.rdp-caption_label {
-  display: none !important;
-}
-
-.rdp-caption_dropdowns {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  justify-content: center;
-}
-
-.rdp-table {
-  max-width: 100%;
-  margin: 0;
-}
-
-.rdp-head_cell,
-.rdp-cell {
-  width: calc(100% / 7);
-  min-width: 0;
-}
-
-.rdp-day {
-  width: 36px;
-  height: 36px;
-  margin: 0 auto;
-}
-
-/* Calendar dropdown improvements */
-.rdp-caption_dropdowns select {
-  appearance: none;
-  background-color: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--foreground);
-  cursor: pointer;
-  min-width: 90px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23364559' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 32px;
-}
-
-.rdp-caption_dropdowns select:hover {
-  border-color: var(--adoras-green);
-}
-
-.rdp-caption_dropdowns select:focus {
-  outline: 2px solid var(--adoras-green);
-  outline-offset: 2px;
-  border-color: var(--adoras-green);
-}
-
-/* Mobile optimizations for calendar */
-@media (max-width: 640px) {
-  .rdp {
-    --rdp-cell-size: 36px;
-  }
-  
-  .rdp-month {
-    max-width: 100%;
-  }
-  
-  .rdp-caption_dropdowns select {
-    min-width: 80px;
-    font-size: 0.8125rem;
-    padding: 5px 10px;
-    padding-right: 28px;
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
   }
 }
