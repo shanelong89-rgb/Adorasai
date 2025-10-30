@@ -1,8 +1,5 @@
-import image_c0ceb92d68e5b47f201fa6ace32aa529988746ee from 'figma:asset/c0ceb92d68e5b47f201fa6ace32aa529988746ee.png';
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import adorasLogo from 'figma:asset/3fe1935c438bb2370304ba54a6324fc61eac466e.png';
-import plantLeaf from 'figma:asset/6fc0862563eb8f1312cdac1ec953e5668753b6c9.png';
 import { motion } from 'motion/react';
 import { Mail } from 'lucide-react';
 import { Separator } from './ui/separator';
@@ -32,7 +29,7 @@ export function WelcomeScreen({ onNext, onLogin }: WelcomeScreenProps) {
         {/* Background plant image */}
         <motion.div 
           className="absolute inset-0 bg-cover bg-center opacity-40"
-          style={{ backgroundImage: `url(${plantLeaf})` }}
+          style={{ backgroundImage: `url(https://images.unsplash.com/photo-1593309556524-350239b6ac10?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080)` }}
           animate={{
             scale: [1, 1.1, 1],
             x: [0, -20, 0],
@@ -60,11 +57,12 @@ export function WelcomeScreen({ onNext, onLogin }: WelcomeScreenProps) {
         <div className="relative w-full max-w-md text-center space-y-3 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-8 animate-scale-in rounded-[1px]">
           {/* Adoras Logo */}
           <div className="flex justify-center mt-0 mb-4 sm:mb-[10px]">
-            <img 
-              src={image_c0ceb92d68e5b47f201fa6ace32aa529988746ee} 
-              alt="Adoras AI" 
-              className="w-32 h-32 sm:w-45 sm:h-45 object-contain drop-shadow-2xl mb-8 sm:mb-[100px]"
-            />
+            <div className="w-32 h-32 sm:w-45 sm:h-45 flex items-center justify-center mb-8 sm:mb-[100px]">
+              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl">
+                <circle cx="50" cy="50" r="45" fill="rgb(245, 249, 233)" opacity="0.9"/>
+                <text x="50" y="60" fontSize="36" fontWeight="700" fill="rgb(54, 69, 59)" textAnchor="middle" fontFamily="Archivo">A</text>
+              </svg>
+            </div>
           </div>
 
           {/* Main heading */}
