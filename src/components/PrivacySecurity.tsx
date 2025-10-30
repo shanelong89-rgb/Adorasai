@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Shield, Lock, Eye, Users, Download, Trash2, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { apiClient } from '../utils/api';
 import { UserProfile } from '../App';
 

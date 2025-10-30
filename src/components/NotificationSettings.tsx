@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Bell, BellOff, TestTube, Check, X, Clock, Sparkles, AlertCircle, Smartphone, Info, HelpCircle, Wrench } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { IOSSettingsGuide } from './IOSSettingsGuide';
 import { NotificationDiagnostic } from './NotificationDiagnostic';
 import {

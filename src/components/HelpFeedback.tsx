@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { HelpCircle, MessageSquare, Book, Mail, ExternalLink, Star, Bug, Lightbulb, Send, FileQuestion, LifeBuoy } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface HelpFeedbackProps {
   isOpen: boolean;

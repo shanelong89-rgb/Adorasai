@@ -26,7 +26,7 @@ import {
   AlertCircle,
   UserPlus
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { apiClient } from '../utils/api/client';
 import { DisconnectConfirmDialog } from './DisconnectConfirmDialog';
 import { format, isValid, parseISO } from 'date-fns';

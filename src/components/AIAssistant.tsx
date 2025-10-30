@@ -12,7 +12,7 @@ import { Badge } from './ui/badge';
 import { Sparkles, Send, Loader2, X, RefreshCw, Lightbulb } from 'lucide-react';
 import { chatWithAI, generateAIPrompts } from '../utils/aiService';
 import { Memory, UserProfile, UserType } from '../App';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface Message {
   role: 'user' | 'assistant';

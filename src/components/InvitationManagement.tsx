@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Copy, Mail, Phone, Trash2, RefreshCw, Check, X, Loader2, Clock, CheckCircle, XCircle, UserPlus } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { apiClient } from '../utils/api/client';
 import { format } from 'date-fns';
 

@@ -4,7 +4,7 @@
  * Handles user creation, sign in, sign out, and session management
  */
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'jsr:@supabase/supabase-js';
 import * as kv from './kv_store.tsx';
 import { UserProfile, Keys } from './database.tsx';
 

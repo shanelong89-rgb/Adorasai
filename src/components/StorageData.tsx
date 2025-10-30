@@ -8,7 +8,7 @@ import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { Database, HardDrive, Image, Video, Mic, FileText, Cloud, Download, Trash2, Settings, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAuth } from '../utils/api/AuthContext';
 

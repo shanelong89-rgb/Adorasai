@@ -5,7 +5,7 @@
  * with Supabase Storage integration for media files
  */
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'jsr:@supabase/supabase-js';
 import * as kv from './kv_store.tsx';
 import { Memory, Connection, Keys, generateId } from './database.tsx';
 
@@ -284,7 +284,7 @@ export async function createMemory(params: {
         
         if (vapidPublicKey && vapidPrivateKey) {
           // Import the notification sending functionality
-          const webpush = await import('npm:web-push@3.6.7');
+          const webpush = await import('npm:web-push');
           
           // Get recipient's push subscriptions
           const userSubsKey = `push_subs_list:${recipientId}`;

@@ -9,7 +9,7 @@ import { ChromeLoginFix } from './components/ChromeLoginFix'; // Chrome login fi
 import { SimpleLoginTest } from './components/SimpleLoginTest'; // Simple login test
 import { AuthProvider } from './utils/api/AuthContext';
 import { AppContent } from './components/AppContent';
-import { Toaster } from 'sonner@2.0.3';
+import { Toaster } from 'sonner';
 import { setupGlobalErrorHandlers } from './utils/errorLogger'; // Phase 3f
 import { initPerformanceMonitoring } from './utils/performanceMonitor'; // Phase 3f
 import { pwaInstaller } from './utils/pwaInstaller'; // PWA and Service Worker

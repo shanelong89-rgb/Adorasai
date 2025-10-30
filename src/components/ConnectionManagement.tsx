@@ -11,7 +11,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { UserX, Users, Calendar, MessageCircle, Image as ImageIcon, Video, Mic, FileText, Loader2 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { apiClient } from '../utils/api/client';
 import { DisconnectConfirmDialog } from './DisconnectConfirmDialog';
 import { format, isValid, parseISO } from 'date-fns';

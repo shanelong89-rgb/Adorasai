@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 /**
  * PWA Diagnostic Tool

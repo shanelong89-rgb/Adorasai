@@ -3,10 +3,10 @@
  * Manages web push notification subscriptions and delivery
  */
 
-import { Hono } from 'npm:hono@4';
+import { Hono } from 'npm:hono';
 import { cors } from 'npm:hono/cors';
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import webpush from 'npm:web-push@3.6.7';
+import { createClient } from 'npm:@supabase/supabase-js';
+import webpush from 'npm:web-push';
 import * as kv from './kv_store.tsx';
 
 const notifications = new Hono();

@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Check, X, Loader2, UserPlus, Mail, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { apiClient } from '../utils/api/client';
 import { format } from 'date-fns';
 
