@@ -10,154 +10,589 @@
   /* Design system colors */
   --white: rgb(255, 255, 255);
   --black: rgb(54, 69, 59);
+  --gray-bg: rgb(241, 241, 241);
+  --adotas-bg: rgb(245, 249, 233);
   --adoras-green: rgb(54, 69, 59);
-  --adoras-back: rgb(245, 249, 233);
-  --adoras-accent: rgb(193, 193, 165);
-  --adoras-dark-accent: rgb(139, 139, 122);
+  --fonts-color: rgb(89, 101, 105);
+  --adoras-back: rgb(193, 193, 165);
+  --type-color: rgb(236, 240, 226);
+  --alt-dark-font: rgb(81, 87, 81);
   
-  /* Semantic colors */
-  --background: 40 35% 96%;
-  --foreground: 150 12% 24%;
-  --card: 0 0% 100%;
-  --card-foreground: 150 12% 24%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 150 12% 24%;
-  --primary: 150 12% 24%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 40 8% 70%;
-  --secondary-foreground: 150 12% 24%;
-  --muted: 40 10% 96%;
-  --muted-foreground: 40 5% 40%;
-  --accent: 40 8% 70%;
-  --accent-foreground: 150 12% 24%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 40 8% 70%;
-  --input: 40 8% 70%;
-  --input-background: 0 0% 100%;
-  --switch-background: 40 10% 90%;
-  --ring: 150 12% 24%;
-  --radius: 0.75rem;
+  /* Semantic color mapping */
+  --background: var(--adotas-bg);
+  --foreground: var(--black);
+  --card: var(--white);
+  --card-foreground: var(--black);
+  --popover: var(--white);
+  --popover-foreground: var(--black);
+  
+  /* Primary colors - using the sophisticated green */
+  --primary: var(--adoras-green);
+  --primary-foreground: var(--white);
+  --secondary: var(--gray-bg);
+  --secondary-foreground: var(--alt-dark-font);
+  
+  /* Muted colors */
+  --muted: var(--type-color);
+  --muted-foreground: var(--fonts-color);
+  --accent: var(--adoras-back);
+  --accent-foreground: var(--adoras-green);
+  
+  /* System colors */
+  --destructive: #dc2626;
+  --destructive-foreground: var(--white);
+  --border: rgba(54, 69, 59, 0.1);
+  --input: var(--white);
+  --input-background: var(--white);
+  --switch-background: var(--adoras-back);
   
   /* Typography */
-  --type-color: var(--adoras-green);
-  --font-weight-regular: 400;
   --font-weight-medium: 500;
+  --font-weight-normal: 400;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-black: 900;
   
-  /* Chart colors */
-  --chart-1: 150 12% 24%;
-  --chart-2: 40 8% 70%;
-  --chart-3: 40 8% 51%;
-  --chart-4: 40 35% 96%;
-  --chart-5: 40 5% 40%;
+  /* Effects */
+  --ring: var(--adoras-green);
+  --shadow-sm: 0 1px 2px 0 rgb(54 69 59 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(54 69 59 / 0.1), 0 1px 2px -1px rgb(54 69 59 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(54 69 59 / 0.1), 0 2px 4px -2px rgb(54 69 59 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(54 69 59 / 0.1), 0 4px 6px -4px rgb(54 69 59 / 0.1);
+  
+  /* Charts */
+  --chart-1: var(--adoras-green);
+  --chart-2: var(--adoras-back);
+  --chart-3: var(--fonts-color);
+  --chart-4: var(--alt-dark-font);
+  --chart-5: var(--type-color);
+  
+  /* Border radius */
+  --radius: 0.5rem;
   
   /* Sidebar */
-  --sidebar: var(--background);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: 150 12% 24%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 40 8% 70%;
-  --sidebar-accent-foreground: 150 12% 24%;
-  --sidebar-border: 40 8% 70%;
-  --sidebar-ring: var(--ring);
+  --sidebar: var(--white);
+  --sidebar-foreground: var(--black);
+  --sidebar-primary: var(--adoras-green);
+  --sidebar-primary-foreground: var(--white);
+  --sidebar-accent: var(--type-color);
+  --sidebar-accent-foreground: var(--adoras-green);
+  --sidebar-border: rgba(54, 69, 59, 0.1);
+  --sidebar-ring: var(--adoras-green);
+}
+
+.dark {
+  --background: var(--black);
+  --foreground: var(--white);
+  --card: rgba(54, 69, 59, 0.95);
+  --card-foreground: var(--white);
+  --popover: rgba(54, 69, 59, 0.95);
+  --popover-foreground: var(--white);
+  --primary: var(--adoras-back);
+  --primary-foreground: var(--adoras-green);
+  --secondary: rgba(54, 69, 59, 0.3);
+  --secondary-foreground: var(--type-color);
+  --muted: rgba(54, 69, 59, 0.2);
+  --muted-foreground: var(--adoras-back);
+  --accent: rgba(54, 69, 59, 0.4);
+  --accent-foreground: var(--type-color);
+  --destructive: #dc2626;
+  --destructive-foreground: var(--white);
+  --border: rgba(193, 193, 165, 0.2);
+  --input: rgba(54, 69, 59, 0.95);
+  --input-background: rgba(54, 69, 59, 0.95);
+  --switch-background: rgba(193, 193, 165, 0.3);
+  --ring: var(--adoras-back);
+  --chart-1: var(--adoras-back);
+  --chart-2: var(--type-color);
+  --chart-3: var(--adoras-green);
+  --chart-4: var(--fonts-color);
+  --chart-5: var(--alt-dark-font);
+  --sidebar: rgba(54, 69, 59, 0.95);
+  --sidebar-foreground: var(--white);
+  --sidebar-primary: var(--adoras-back);
+  --sidebar-primary-foreground: var(--adoras-green);
+  --sidebar-accent: rgba(54, 69, 59, 0.3);
+  --sidebar-accent-foreground: var(--type-color);
+  --sidebar-border: rgba(193, 193, 165, 0.2);
+  --sidebar-ring: var(--adoras-back);
 }
 
 @layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Archivo', sans-serif;
-    color: var(--type-color);
+  
+  /* iOS PWA Fullscreen Support */
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    
+    /* Prevent pull-to-refresh and overscroll on iOS PWA */
+    overscroll-behavior-y: contain;
   }
-
-  h1 {
-    font-size: 2rem;
-    font-weight: var(--font-weight-bold);
-    line-height: 1.2em;
-    letter-spacing: -0.08em;
+  
+  /* Support for iOS safe areas (notch, home indicator) */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
-
-  h2 {
-    font-size: 1.5rem;
-    font-weight: var(--font-weight-bold);
-    line-height: 1.3em;
-    letter-spacing: -0.06em;
+  
+  /* Ensure root element fills viewport in standalone mode */
+  #root {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
-
-  h3 {
-    font-size: 1.25rem;
-    font-weight: var(--font-weight-semibold);
-    line-height: 1.4em;
-    letter-spacing: -0.05em;
-  }
-
-  h4 {
-    font-size: 1.125rem;
-    font-weight: var(--font-weight-semibold);
-    line-height: 1.4em;
-    letter-spacing: -0.04em;
-  }
-
-  h5 {
-    font-size: 1rem;
-    font-weight: var(--font-weight-semibold);
-    line-height: 1.5em;
-    letter-spacing: -0.03em;
-  }
-
-  h6 {
-    font-size: 0.875rem;
-    font-weight: var(--font-weight-semibold);
-    line-height: 1.5em;
-    letter-spacing: -0.02em;
-  }
-
-  p {
-    font-family: 'Inter', sans-serif;
-    font-size: 1rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.4em;
-    letter-spacing: -0.05em;
-    color: hsl(var(--muted-foreground));
-  }
-
-  label {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-    font-weight: var(--font-weight-semibold);
-    line-height: 1.4em;
-    letter-spacing: -0.04em;
-    color: var(--type-color);
-  }
-
-  button {
-    font-family: 'Inter', sans-serif;
-    font-weight: var(--font-weight-semibold);
-    letter-spacing: -0.03em;
-  }
-
-  input, textarea {
-    font-family: 'Inter', sans-serif;
-    font-size: 1rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5em;
-    letter-spacing: -0.02em;
+  
+  /* iOS standalone mode specific styles */
+  @media all and (display-mode: standalone) {
+    body {
+      /* Prevent any browser-like behaviors */
+      -webkit-touch-callout: none;
+    }
+    
+    html {
+      /* Ensure proper height calculation on iOS */
+      height: -webkit-fill-available;
+    }
   }
 }
 
+/* Improved Container and Spacing System */
 @layer components {
-  .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  /* Main container with proper max-width and padding */
+  .app-container {
+    @apply max-w-2xl mx-auto px-4 sm:px-6;
   }
   
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  /* Content spacing utilities */
+  .content-spacing {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  .content-padding {
+    @apply px-4 py-6 sm:px-6 sm:py-8;
+  }
+  
+  .section-spacing {
+    @apply mb-6 sm:mb-8;
+  }
+  
+  /* Card improvements */
+  .card-refined {
+    @apply rounded-xl border border-border/50 bg-card shadow-sm;
+  }
+  
+  .card-padding {
+    @apply p-4 sm:p-6;
+  }
+  
+  .card-header-spacing {
+    @apply mb-3 sm:mb-4;
+  }
+}
+
+/* Enhanced Visual Polish */
+@layer utilities {
+  /* Smooth hover transitions */
+  .hover-lift {
+    @apply transition-transform duration-200 ease-out hover:-translate-y-0.5;
+  }
+  
+  .hover-lift-lg {
+    @apply transition-transform duration-200 ease-out hover:-translate-y-1;
+  }
+  
+  /* Better shadows */
+  .shadow-soft {
+    box-shadow: 0 2px 8px rgba(54, 69, 59, 0.08);
+  }
+  
+  .shadow-soft-lg {
+    box-shadow: 0 4px 16px rgba(54, 69, 59, 0.12);
+  }
+  
+  /* Refined borders */
+  .border-refined {
+    @apply border border-border/40;
+  }
+  
+  /* Better focus states */
+  .focus-refined {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-family: 'Archivo', sans-serif;
+      font-size: 3.5rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 0.96em;
+      letter-spacing: -0.07em;
+      color: var(--foreground);
+    }
+
+    h2 {
+      font-family: 'Archivo', sans-serif;
+      font-size: 2.375rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.1em;
+      letter-spacing: -0.07em;
+      color: var(--foreground);
+    }
+
+    h3 {
+      font-family: 'Archivo', sans-serif;
+      font-size: 1.875rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.1em;
+      letter-spacing: -0.05em;
+      color: var(--foreground);
+    }
+
+    h4 {
+      font-family: 'Archivo', sans-serif;
+      font-size: 1.375rem;
+      font-weight: var(--font-weight-semibold);
+      line-height: 1.4em;
+      letter-spacing: -0.05em;
+      color: var(--foreground);
+    }
+
+    p {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.4em;
+      letter-spacing: -0.05em;
+      color: var(--muted-foreground);
+    }
+
+    label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-semibold);
+      line-height: 1.4em;
+      letter-spacing: -0.04em;
+      color: var(--foreground);
+    }
+
+    button {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-semibold);
+      line-height: 1.4em;
+      letter-spacing: -0.04em;
+    }
+
+    input, textarea, select {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.4em;
+      letter-spacing: -0.05em;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+  font-family: 'Archivo', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Prevent zoom on iOS when focusing inputs */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Ensure aspect-square works properly on mobile */
+.aspect-square {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  min-height: 0;
+  position: relative;
+}
+
+/* Ensure images inside aspect-square containers display properly */
+.aspect-square img,
+.aspect-square video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Mobile-specific fixes for media display */
+@media (max-width: 640px) {
+  .aspect-square {
+    min-height: 150px;
+    height: auto;
+  }
+  
+  /* Ensure grid items have proper height */
+  .grid.grid-cols-2 > * {
+    min-height: 0;
+  }
+}
+
+/* Design system gradients */
+.gradient-background {
+  background: linear-gradient(135deg, var(--adoras-green) 0%, var(--alt-dark-font) 100%);
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, var(--adoras-green) 0%, var(--fonts-color) 100%);
+}
+
+.gradient-secondary {
+  background: linear-gradient(135deg, var(--adotas-bg) 0%, var(--type-color) 100%);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, var(--adoras-back) 0%, var(--type-color) 100%);
+}
+
+/* Glass morphism effect */
+.glass {
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background: rgba(26, 26, 26, 0.8);
+  border: 1px solid rgba(38, 38, 38, 0.2);
+}
+
+/* Smooth animations */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Custom datetime-local input styling to match Adoras theme */
+input[type="datetime-local"] {
+  color-scheme: light;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(31%) sepia(15%) saturate(787%) hue-rotate(103deg) brightness(95%) contrast(91%);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(54, 69, 59, 0.1);
+}
+
+/* WebKit datetime popup styling */
+input[type="datetime-local"]::-webkit-datetime-edit {
+  padding: 0;
+  color: var(--foreground);
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit-text {
+  color: var(--muted-foreground);
+  padding: 0 2px;
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+input[type="datetime-local"]::-webkit-datetime-edit-minute-field,
+input[type="datetime-local"]::-webkit-datetime-edit-ampm-field {
+  color: var(--adoras-green);
+  padding: 2px 4px;
+  border-radius: 4px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit-month-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-day-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-year-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-hour-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-minute-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-ampm-field:focus {
+  background-color: rgba(54, 69, 59, 0.1);
+  color: var(--adoras-green);
+  outline: none;
+}
+
+/* Ensure the calendar popup uses the app's color scheme (limited browser support) */
+@supports selector(::-webkit-calendar-picker-indicator) {
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    background-color: transparent;
+  }
+}
+
+/* Calendar component styling improvements */
+.rdp {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: var(--adoras-green);
+  --rdp-background-color: var(--white);
+  margin: 0;
+}
+
+.rdp-months {
+  justify-content: center;
+}
+
+.rdp-month {
+  width: 100%;
+  max-width: 280px;
+}
+
+.rdp-caption {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 0.25rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Hide caption label when using dropdowns to avoid duplication */
+.rdp-caption_label {
+  display: none !important;
+}
+
+.rdp-caption_dropdowns {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.rdp-table {
+  max-width: 100%;
+  margin: 0;
+}
+
+.rdp-head_cell,
+.rdp-cell {
+  width: calc(100% / 7);
+  min-width: 0;
+}
+
+.rdp-day {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+}
+
+/* Calendar dropdown improvements */
+.rdp-caption_dropdowns select {
+  appearance: none;
+  background-color: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  cursor: pointer;
+  min-width: 90px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23364559' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 32px;
+}
+
+.rdp-caption_dropdowns select:hover {
+  border-color: var(--adoras-green);
+}
+
+.rdp-caption_dropdowns select:focus {
+  outline: 2px solid var(--adoras-green);
+  outline-offset: 2px;
+  border-color: var(--adoras-green);
+}
+
+/* Mobile optimizations for calendar */
+@media (max-width: 640px) {
+  .rdp {
+    --rdp-cell-size: 36px;
+  }
+  
+  .rdp-month {
+    max-width: 100%;
+  }
+  
+  .rdp-caption_dropdowns select {
+    min-width: 80px;
+    font-size: 0.8125rem;
+    padding: 5px 10px;
+    padding-right: 28px;
   }
 }
