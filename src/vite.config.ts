@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   root: '.',
   outDir: 'build',
-    outDir: 'dist',
+    outDir: 'build',
     sourcemap: true,
     emptyOutDir: true,
     rollupOptions: {
