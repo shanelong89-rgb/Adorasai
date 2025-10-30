@@ -370,10 +370,10 @@ export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory,
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-7 max-w-2xl mx-auto">
       {/* Today's Featured Prompt */}
       <Card className="border-0 gradient-accent shadow-lg animate-scale-in border border-primary/10">
-        <CardHeader className="py-3 px-4 sm:py-[14px] sm:px-[24px] pb-2 sm:pb-3">
+        <CardHeader className="py-4 px-5 sm:py-5 sm:px-6 pb-3 sm:pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="p-2 sm:p-3 bg-primary/15 rounded-xl">
@@ -389,7 +389,7 @@ export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory,
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 pt-3 px-4 pb-4 sm:pt-4 sm:px-6 sm:pb-6">
+        <CardContent className="space-y-5 sm:space-y-6 pt-4 px-5 pb-5 sm:pt-5 sm:px-6 sm:pb-7">
           <div className="flex items-start space-x-3 sm:space-x-4">
             <div className="text-2xl sm:text-3xl p-2 sm:p-3 bg-white/60 rounded-xl backdrop-blur-sm border border-white/20 flex-shrink-0">
               {todaysPrompt.icon}
@@ -425,25 +425,26 @@ export function PromptsTab({ userType, partnerName, partnerProfile, onAddMemory,
       </Card>
 
       {/* Other Prompts */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{isParent ? 'More Story Topics' : 'More Prompts'}</h3>
-          <Button variant="ghost" size="sm" onClick={handleGenerateNew}>
+      <div className="space-y-4 sm:space-y-5">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-lg sm:text-xl font-semibold" style={{ fontFamily: 'Archivo', letterSpacing: '-0.04em' }}>{isParent ? 'More Story Topics' : 'More Prompts'}</h3>
+          <Button variant="ghost" size="sm" onClick={handleGenerateNew} className="text-sm">
             <Sparkles className="w-4 h-4 mr-2" />
-            Generate New
+            <span className="hidden sm:inline">Generate New</span>
+            <span className="sm:hidden">New</span>
           </Button>
         </div>
 
-        <div className="grid gap-4 px-[0px] py-[-5px]">
+        <div className="grid gap-3 sm:gap-4">
           {displayedPrompts.slice(1, 9).map((prompt) => (
             <Card 
               key={prompt.id}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border bg-card/70 backdrop-blur-sm border-border/30 ${
-                selectedPrompt === prompt.id ? 'ring-2 ring-primary shadow-lg scale-[1.02] bg-primary/5' : ''
+              className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border bg-card/80 backdrop-blur-sm border-border/40 rounded-xl ${
+                selectedPrompt === prompt.id ? 'ring-2 ring-primary shadow-md scale-[1.01] bg-primary/5' : ''
               }`}
               onClick={() => setSelectedPrompt(selectedPrompt === prompt.id ? null : prompt.id)}
             >
-              <CardContent className="p-5">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-start space-x-4">
                   <div className="text-2xl p-2.5 bg-muted/40 rounded-xl border border-border/20">
                     {prompt.icon}
