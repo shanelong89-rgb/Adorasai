@@ -25,6 +25,18 @@ class PWAInstaller {
   }
 
   private initialize() {
+    // Detect environment
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone;
+    
+    console.log('🔍 PWA Environment:', { 
+      isIOS, 
+      isStandalone, 
+      userAgent: navigator.userAgent,
+      swSupported: 'serviceWorker' in navigator 
+    });
+
     // Listen for install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
       console.log('📱 PWA install prompt available');
@@ -40,8 +52,25 @@ class PWAInstaller {
       this.notifyInstallListeners(false);
     });
 
-    // Register service worker
-    this.registerServiceWorker();
+    // Register service worker with iOS-specific timing
+    if (isIOS && isStandalone) {
+      // iOS standalone mode: Delay registration to ensure page is fully loaded
+      console.log('📱 iOS Standalone detected - delaying SW registration');
+      if (document.readyState === 'complete') {
+        setTimeout(() => this.registerServiceWorker(), 500);
+      } else {
+        window.addEventListener('load', () => {
+          setTimeout(() => this.registerServiceWorker(), 500);
+        });
+      }
+    } else {
+      // Other platforms: Register immediately
+      if (document.readyState === 'complete') {
+        this.registerServiceWorker();
+      } else {
+        window.addEventListener('load', () => this.registerServiceWorker());
+      }
+    }
   }
 
   // Register the service worker
@@ -52,26 +81,10 @@ class PWAInstaller {
     }
 
     try {
-      console.log('📝 [SW] Starting service worker registration...');
+      console.log('📝 [SW] Starting service worker registration from pwaInstaller...');
       
-      // Check if service worker file exists first
-      // This will fail in Figma Make preview (expected) but work in production
-      try {
-        const swCheck = await fetch('/sw.js', { method: 'HEAD' });
-        if (!swCheck.ok) {
-          console.log('ℹ️ [SW] Service worker file not accessible (404)');
-          console.log('ℹ️ [SW] This is expected in Figma Make preview environment');
-          console.log('ℹ️ [SW] Service workers and push notifications will work when deployed to production');
-          console.log('ℹ️ [SW] For now, in-app notifications will be used instead');
-          return null;
-        }
-      } catch (fetchError) {
-        console.log('ℹ️ [SW] Cannot check service worker file availability');
-        console.log('ℹ️ [SW] This is expected in preview - will work in production');
-        return null;
-      }
-      
-      // Try to register the service worker
+      // Try to register the service worker directly without HEAD check
+      // iOS sometimes blocks HEAD requests or has CORS issues with them
       const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
       });
@@ -97,10 +110,27 @@ class PWAInstaller {
         });
       });
 
-      // Check for updates every hour
+      // Check for updates (less frequently on iOS to save battery)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const updateInterval = isIOS ? 6 * 60 * 60 * 1000 : 60 * 60 * 1000; // 6 hours on iOS, 1 hour elsewhere
       setInterval(() => {
+        console.log('🔄 [SW] Checking for updates...');
         registration.update();
-      }, 60 * 60 * 1000);
+      }, updateInterval);
+
+      // For iOS, verify registration after a delay
+      if (isIOS) {
+        setTimeout(async () => {
+          const verifyReg = await navigator.serviceWorker.getRegistration();
+          if (verifyReg) {
+            console.log('✅ [SW] iOS: Service worker registration verified!');
+            console.log('📝 [SW] iOS: Active:', !!verifyReg.active);
+            console.log('📝 [SW] iOS: Scope:', verifyReg.scope);
+          } else {
+            console.error('❌ [SW] iOS: Verification failed - no registration found!');
+          }
+        }, 2000);
+      }
 
       // Wait for the service worker to become active
       if (!registration.active && (registration.installing || registration.waiting)) {
@@ -125,8 +155,12 @@ class PWAInstaller {
 
       return registration;
     } catch (error) {
-      // Check if it's a 404 error (expected in preview)
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+        || (window.navigator as any).standalone;
+      
+      // Check if it's a 404 error (expected in preview)
       if (errorMessage.includes('404') || errorMessage.includes('bad HTTP response')) {
         console.log('ℹ️ [SW] Service worker not available in preview environment');
         console.log('ℹ️ [SW] This is expected - push notifications will work in production');
@@ -135,7 +169,17 @@ class PWAInstaller {
         console.error('❌ [SW] Error details:', {
           name: error instanceof Error ? error.name : 'Unknown',
           message: errorMessage,
+          platform: isIOS ? 'iOS' : 'Other',
+          mode: isStandalone ? 'Standalone' : 'Browser'
         });
+        
+        // iOS-specific retry logic
+        if (isIOS && isStandalone) {
+          console.log('🔄 iOS: Retrying registration in 3 seconds...');
+          setTimeout(() => {
+            this.registerServiceWorker();
+          }, 3000);
+        }
       }
       return null;
     }
