@@ -224,7 +224,6 @@ class RealtimeSyncManager {
           connectionId: this.connectionId,
           userId: this.userId,
           userName: this.userName,
-          userPhoto: this.userPhoto || undefined,
         });
       }
     }, delay);
